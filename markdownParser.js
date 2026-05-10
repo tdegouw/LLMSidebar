@@ -30,14 +30,15 @@ function markdownToHtml(markdown) {
         // Code blocks
         .replace(/```(\w*)\n([\s\S]*?)\n```/g, '<pre><code>$2</code></pre>')
 
-        // Unordered lists
+        // Unordered lists: first convert list markers to <li>, then wrap consecutive <li> in <ul>
+        // The negative lookahead (?!\s*<li>) ensures we only wrap the last <li> of a group,
+        // preventing nested <ul> tags for each item.
         .replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>')
-        // Wrap consecutive <li> in <ul>
         .replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/gs, '<ul>$1</ul>')
 
-        // Ordered lists
+        // Ordered lists: same approach as unordered, but wraps in <ol>
         .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
-        .replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/gs, '<ol>$1</ol>')  // simple version
+        .replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/gs, '<ol>$1</ol>')
 
         // Blockquotes
         .replace(/^>\s*(.+)$/gm, '<blockquote>$1</blockquote>')

@@ -42,6 +42,7 @@ async function extractPageContent(tabId) {
  * @returns {Promise<string>} The full accumulated response
  */
 async function streamChatCompletion(model, promptText, content, onChunk, onReasoning) {
+    // Use higher temperature for longer content to maintain quality with more context
     const temperature = (typeof CONFIG !== 'undefined' && CONFIG.temperature) || 0.6;
     const threshold = (typeof CONFIG !== 'undefined' && CONFIG.temperatureThreshold) || 1000;
     const highTemp = (typeof CONFIG !== 'undefined' && CONFIG.temperatureHigh) || 0.8;
@@ -97,11 +98,6 @@ async function streamChatCompletion(model, promptText, content, onChunk, onReaso
                 if (reasoning && onReasoning) {
                     fullText += reasoning;
                     onReasoning(reasoning);
-                    await new Promise(resolve => setTimeout(resolve, 10));
-                }
-                if (chunk && onChunk) {
-                    fullText += chunk;
-                    onChunk(chunk);
                     await new Promise(resolve => setTimeout(resolve, 10));
                 }
                 if (chunk && onChunk) {

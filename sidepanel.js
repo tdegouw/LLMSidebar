@@ -212,11 +212,12 @@ async function loadPrompts() {
             localStorage.setItem('defaultPrompts', JSON.stringify(rawPrompts));
         }
 
-        // Merge with any custom prompts from localStorage
+        // Merge with any custom prompts from localStorage (user overrides take priority)
         const customPrompts = getCustomPrompts();
         PROMPTS = {};
         for (const key in rawPrompts) {
             if (Object.hasOwnProperty.call(rawPrompts, key)) {
+                // Prefer custom prompt, fall back to default from config file
                 const template = customPrompts[key] || rawPrompts[key];
                 const fn = createPromptFunction(template);
                 PROMPTS[key] = fn;
