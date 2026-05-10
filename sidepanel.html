@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMM Sidebar Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-50: #ede9fe;
+            --primary-100: #ddd6fe;
+            --primary-200: #c4b5fd;
+            --primary-300: #a78bfa;
+            --primary-400: #8b5cf6;
+            --primary-500: #7c3aed;
+            --primary-600: #6d28d9;
+            --primary-700: #5b21b6;
+            --primary-800: #4c1d95;
+            --primary-900: #431486;
+
+            --surface-bg: #1a1a2e;
+            --surface-card: #16213e;
+            --surface-elevated: #0f0f1a;
+
+            --border-color: rgba(139, 92, 246, 0.2);
+
+            --text-primary: #ffffff;
+            --text-secondary: #b8b8d6;
+            --text-muted: #7c7c9a;
+
+            --accent-glow: radial-gradient(600px circle at 50% 50%, rgba(124, 58, 237, 0.15), transparent 70%);
+
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+
+            --border-radius-lg: 16px;
+            --border-radius-md: 12px;
+            --border-radius-sm: 8px;
+        }
+
+        body {
+            width: 100%;
+            min-width: 320px;
+            height: calc(100vh - 52px);
+            display: flex;
+            flex-direction: column;
+            background: var(--surface-bg);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            overflow: hidden;
+        }
+
+        body[data-theme="light"] {
+            --surface-bg: #f8fafc;
+            --surface-card: #ffffff;
+            --surface-elevated: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: rgba(139, 92, 246, 0.1);
+        }
+
+        /* Animated Background */
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background: linear-gradient(
+                135deg,
+                var(--surface-bg) 0%,
+                var(--surface-elevated) 100%
+            );
+        }
+
+        body[data-theme="light"] .bg-gradient {
+            background: linear-gradient(
+                135deg,
+                var(--surface-bg) 0%,
+                #e2e8f0 100%
+            );
+        }
+
+        /* Header */
+        .header {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--surface-elevated);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: -0.3px;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-400));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--primary-500);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            display: none;
+        }
+
+        .status-indicator.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); }
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--surface-elevated);
+            padding: 0 16px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 14px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        .tab.active {
+            color: var(--primary-300);
+            background: rgba(124, 58, 237, 0.15);
+            border-bottom-color: var(--primary-500);
+        }
+
+        .tab-icon {
+            margin-right: 6px;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+
+        /* Input Card */
+        .input-card {
+            background: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-md);
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        body[data-theme="light"] .input-card {
+            background: var(--surface-card);
+            border-color: rgba(0,0,0,0.05);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Select Styling */
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--surface-bg);
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237c7c9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+        }
+
+        select:hover {
+            border-color: var(--primary-400);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+
+        select option {
+            background: var(--surface-bg);
+            color: var(--text-primary);
+            padding: 10px;
+        }
+
+        /* Button */
+        .primary-btn {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: -0.2px;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
+        }
+
+        .primary-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Result Card */
+        .result-container {
+            background: var(--surface-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .result-header {
+            padding: 14px 16px;
+            background: var(--surface-elevated);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .result-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-body {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        /* Loading States */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 15, 26, 0.8);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner-circle {
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(124, 58, 237, 0.3);
+            border-top-color: var(--primary-400);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
+            margin-left: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error-card {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--border-radius-md);
+            padding: 14px;
+            color: #ef4444;
+            font-size: 13px;
+        }
+
+        .error-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            background: rgba(239, 68, 68, 0.2);
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            background: var(--surface-elevated);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .footer-link {
+            color: var(--primary-400);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-link:hover {
+            color: var(--primary-300);
+        }
+
+        /* Theme Toggle */
+        .theme-toggle-btn {
+            background: var(--surface-card);
+            border: 1px solid var(--border-color);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 16px;
+        }
+
+        .theme-toggle-btn:hover {
+            border-color: var(--primary-400);
+            transform: rotate(15deg);
+        }
+
+        /* Markdown Styling in Results */
+        .result-content h1, .result-content h2, .result-content h3 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+            color: var(--primary-300);
+            font-weight: 700;
+        }
+
+        .result-content p {
+            margin-bottom: 12px;
+        }
+
+        .result-content ul, .result-content ol {
+            margin-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        .result-content li {
+            margin-bottom: 4px;
+        }
+
+        .result-content strong {
+            color: var(--primary-200);
+        }
+
+        /* Config Items Layout */
+        .config-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .config-item:last-child .input-card {
+            margin-bottom: 0;
+        }
+
+        /* Model Info Badge */
+        .model-info {
+            padding: 6px 10px;
+            background: rgba(139, 92, 246, 0.15);
+            border-radius: var(--border-radius-sm);
+            font-size: 11px;
+            color: var(--primary-300);
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .model-info::before {
+            content: 'ℹ️';
+            font-size: 12px;
+        }
+
+        /* Quick Action Buttons */
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .quick-action-btn {
+            flex: 1;
+            padding: 8px;
+            background: var(--surface-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-action-btn:hover {
+            background: rgba(124, 58, 237, 0.2);
+            color: var(--primary-300);
+            border-color: var(--primary-400);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 24px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 13px;
+        }
+
+        /* Responsive */
+        @media (max-height: 600px) {
+            body {
+                height: calc(100vh - 48px);
+            }
+
+            .footer {
+                padding: 8px 12px;
+            }
+
+            .header {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <div class="bg-gradient"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            <span id="modelTitle">LMM Assistant</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="status-indicator" id="statusIndicator"></span>
+            <button id="themeToggle" class="theme-toggle-btn" title="Toggle theme">🌓</button>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs">
+        <div class="tab active" data-tab="output">
+            <span class="tab-icon">📄</span>Output
+        </div>
+        <div class="tab" data-tab="config">
+            <span class="tab-icon">⚙️</span>Config
+        </div>
+    </nav>
+
+    <!-- Output Tab -->
+    <div id="output" class="tab-content active">
+        <!-- Prompt Type -->
+        <div class="input-card" style="margin-bottom: 12px;">
+            <div class="card-header">
+                <div class="card-icon">📝</div>
+                <span class="card-title">Task Type</span>
+            </div>
+            <select id="promptSelect">
+                <option value="summarize">Summarize</option>
+                <option value="translate">Translate</option>
+                <option value="code_review">Code Review</option>
+                <option value="simplify">Simplify</option>
+                <option value="correct">Grammar Correction</option>
+                <option value="explain">Explain</option>
+                <option value="bullets">Bulleted List</option>
+                <option value="tone_change">Change Tone</option>
+                <option value="eli5">ELI5</option>
+                <option value="caveman">Caveman</option>
+                <option value="haiku">Haiku</option>
+            </select>
+            <div id="currentLangDisplay" style="margin-top: 10px; font-size: 12px; color: var(--text-muted);">
+                Current language: English
+            </div>
+            <button id="analyzeBtn" class="primary-btn" style="margin-top: 12px;">
+                <span>⚡</span> Process Page
+            </button>
+        </div>
+
+        <div id="reasoningContainer" class="result-container" style="min-height: auto; display: none;">
+            <div class="result-header">
+                <span class="result-title">
+                    <span style="font-size: 14px;">🧠</span> Reasoning
+                </span>
+                <button id="maximizeReasoningBtn" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 14px;" title="Maximize reasoning">⛶</button>
+            </div>
+            <div id="reasoningBody" style="font-size: 12px; color: var(--text-secondary); padding: 12px 16px; line-height: 1.6; font-family: var(--font-sans); height: calc(8 * 1.6em); max-height: calc(8 * 1.6em); overflow-y: scroll;">
+            </div>
+        </div>
+
+        <div class="result-container">
+            <div class="loading-overlay" id="loadingOverlay">
+                <div style="display: flex; align-items: center;">
+                    <div class="spinner-circle"></div>
+                    <span class="loading-text">Analyzing...</span>
+                </div>
+            </div>
+
+            <div class="result-header">
+                <span class="result-title">
+                    <span style="font-size: 14px;">📋</span> Results
+                </span>
+                <button id="clearBtn" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px;" title="Clear results">✕</button>
+            </div>
+
+            <div class="result-body" id="resultBody">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p class="empty-state-text">Click "Process Page" to analyze content</p>
+                </div>
+            </div>
+
+            <div class="loading-overlay" id="errorOverlay">
+                <div class="error-card">
+                    <span class="error-icon">⚠️</span>
+                    <span id="errorMessage">Analysis error occurred</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Tab -->
+    <div id="config" class="tab-content">
+        <div class="config-items">
+            <!-- Model Selector -->
+            <div class="input-card">
+                <div class="card-header">
+                    <div class="card-icon">🤖</div>
+                    <span class="card-title">Model</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <select id="llmSelect" style="flex: 1;">
+                        <option value="">— Select a model —</option>
+                    </select>
+                    <button type="button" id="refreshModelsBtn" title="Refresh model list">🔄</button>
+                </div>
+                <div class="model-info">Loads from LM Studio local server</div>
+            </div>
+
+            <!-- Language Selector -->
+            <div class="input-card">
+                <div class="card-header">
+                    <div class="card-icon">🌐</div>
+                    <span class="card-title">Target Language</span>
+                </div>
+                <select id="langSelect">
+                    <option value="english">English</option>
+                    <option value="french">French</option>
+                    <option value="spanish">Spanish</option>
+                    <option value="portuguese">Portuguese</option>
+                    <option value="chinese">Chinese (Simplified)</option>
+                    <option value="russian">Russian</option>
+                    <option value="dutch">Dutch</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- MAX_LEN Config -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">📏</div>
+                <span class="card-title">Max Page Content Length</span>
+            </div>
+            <input type="number" id="maxLenInput" min="1000" max="50000" step="500" value="8000" style="width: 100%; padding: 12px 16px; background: var(--surface-bg); border: 1.5px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--text-primary); font-size: 14px; font-family: inherit;">
+            <div class="model-info" style="margin-top: 8px;">Maximum characters extracted from page content, make sure this is not larger than the context window of your model. (default: 8000)</div>
+        </div>
+
+        <!-- Temperature Config -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">🌡️</div>
+                <span class="card-title">Temperature</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Low</label>
+                    <input type="number" id="temperatureInput" min="0" max="2" step="0.05" value="0.6" style="width: 100%; padding: 10px 12px; background: var(--surface-bg); border: 1.5px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--text-primary); font-size: 14px; font-family: inherit;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">High</label>
+                    <input type="number" id="temperatureHighInput" min="0" max="2" step="0.05" value="0.8" style="width: 100%; padding: 10px 12px; background: var(--surface-bg); border: 1.5px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--text-primary); font-size: 14px; font-family: inherit;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Threshold (chars)</label>
+                    <input type="number" id="temperatureThresholdInput" min="100" max="10000" step="100" value="1000" style="width: 100%; padding: 10px 12px; background: var(--surface-bg); border: 1.5px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--text-primary); font-size: 14px; font-family: inherit;">
+                </div>
+            </div>
+            <div class="model-info" style="margin-top: 8px;">Low temperature used when content is below threshold. High temperature used when content exceeds threshold.</div>
+        </div>
+
+        <!-- Language Management -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">🌐</div>
+                <span class="card-title">Manage Languages</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <input type="text" id="newLangCode" placeholder="Code (e.g. ja)" style="flex: 1; padding: 10px 12px; background: var(--surface-bg); border: 1.5px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--text-primary); font-size: 13px;">
+                <input type="text" id="newLangName" placeholder="Name (e.g. Japanese)" style="flex: 1; padding: 10px 12px; background: var(--surface-bg); border: 1.5px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--text-primary); font-size: 13px;">
+            </div>
+            <button id="addLangBtn" class="quick-action-btn" style="width: 100%; margin-bottom: 12px;">Add Language</button>
+            <div id="langList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+        </div>
+
+        <!-- Prompt Editor -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">✏️</div>
+                <span class="card-title">Edit Prompt</span>
+            </div>
+            <select id="promptEditorSelect" style="margin-bottom: 12px;">
+                <option value="summarize">summarize</option>
+                <option value="translate">translate</option>
+                <option value="code_review">code_review</option>
+                <option value="simplify">simplify</option>
+                <option value="correct">correct</option>
+                <option value="explain">explain</option>
+                <option value="bullets">bullets</option>
+                <option value="tone_change">tone_change</option>
+                <option value="eli5">eli5</option>
+                <option value="caveman">caveman</option>
+                <option value="haiku">haiku</option>
+            </select>
+            <textarea id="promptEditorTextarea" rows="6" style="width: 100%; padding: 12px 16px; background: var(--surface-bg); border: 1.5px solid var(--border-color); border-radius: var(--border-radius-sm); color: var(--text-primary); font-size: 13px; font-family: var(--font-mono); resize: vertical; line-height: 1.6;"></textarea>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button id="savePromptBtn" class="primary-btn" style="padding: 10px; font-size: 13px; flex: 1;">
+                    <span>💾</span> Save
+                </button>
+                <button id="resetPromptBtn" class="quick-action-btn" style="flex: 1; padding: 10px;">
+                    Reset
+                </button>
+            </div>
+            <div class="model-info" id="editorHelp">Select a prompt type above to view and edit it</div>
+        </div>
+
+        <!-- Reset All -->
+        <div class="input-card" style="border-color: rgba(239, 68, 68, 0.3);">
+            <div class="card-header">
+                <div class="card-icon" style="background: linear-gradient(135deg, #dc2626, #991b1b);">⚠️</div>
+                <span class="card-title" style="color: #ef4444;">Reset All</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                This will remove all your custom languages, edited prompts, and saved theme preference. The extension will return to its default state. Your language selection will also be reset.
+            </p>
+            <button id="resetAllBtn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: var(--border-radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                Reset All Settings
+            </button>
+            <div id="resetStatus" style="display: none; margin-top: 10px; padding: 10px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: var(--border-radius-sm); font-size: 12px; color: #22c55e; text-align: center;">
+                All settings have been reset to defaults.
+            </div>
+        </div>
+    </div>
+
+    <script src="markdownParser.js"></script>
+    <script src="api.js"></script>
+    <script src="sidepanel.js"></script>
+</body>
+</html>
