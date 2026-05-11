@@ -1,4 +1,10 @@
 // markdownParser.js 
+
+/**
+ * Converts markdown text to HTML.
+ * @param {string} markdown - The markdown string to convert.
+ * @returns {string} The resulting HTML string.
+ */
 function markdownToHtml(markdown) {
     if (!markdown || typeof markdown !== 'string') {
         return '';

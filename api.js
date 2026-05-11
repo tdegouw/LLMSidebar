@@ -1,38 +1,4 @@
 /**
- * Extracts page content from a given tab.
- */
-async function extractPageContent(tabId) {
-    const maxLen = (typeof CONFIG !== 'undefined' && CONFIG.maxLen) || 8000;
-    try {
-        const selection = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => window.getSelection().toString().trim()
-        });
-
-        if (selection[0]?.result) {
-            return selection[0].result.substring(0, maxLen);
-        }
-
-        const pageContent = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => {
-                const main = document.querySelector('main, article, [role="main"], #content, .content, .main-content');
-                if (main) return main.innerText.trim();
-                
-                const body = document.body.cloneNode(true);
-                body.querySelectorAll('nav, header, footer, aside, menu, [role="navigation"], [role="banner"], [role="contentinfo"], [role="complementary"]').forEach(el => el.remove());
-                return body.innerText.trim();
-            }
-        });
-
-        return pageContent[0]?.result?.substring(0, maxLen) || '';
-    } catch (error) {
-        console.error('Error extracting page content:', error);
-        return '';
-    }
-}
-
-/**
  * Streams a response from the LM Studio API.
  * @param {string} model - The model ID
  * @param {string} promptText - The system prompt
@@ -112,4 +78,17 @@ async function streamChatCompletion(model, promptText, content, onChunk, onReaso
     }
 
     return fullText;
+}
+
+/**
+ * Fetches available LLM/VLM models from the LM Studio API.
+ * @returns {Promise<Array>} Array of model objects
+ */
+async function loadModelsFromAPI() {
+    const response = await fetch('http://localhost:1234/api/v0/models');
+    if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.data;
 }
