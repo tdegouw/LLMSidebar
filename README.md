@@ -38,10 +38,10 @@ Inspired by [LM-Studio-Assistant](https://github.com/microup/LM-Studio-Assistant
 |---|---|
 | **Context Menu Integration** | Right-click any selected text and choose "Send to LLM" to instantly analyze it in the sidebar. |
 | **Full Page Analysis** | When no text is selected, the extension extracts the main content from the current page and sends it for processing. |
-| **10 Task Types** | Choose from Summarize, Translate, Code Review, Simplify, Grammar Correction, Explain, Bulleted List, Tone Change, ELI5, Caveman, and Haiku. |
+| **11 Task Types** | Choose from Summarize, Translate, Code Review, Simplify, Grammar Correction, Explain, Bulleted List, Change Tone, ELI5, Caveman, and Haiku. |
 | **Streaming Responses** | Results stream token-by-token from LM Studio using Server-Sent Events (SSE), giving you near-instant feedback. |
 | **Reasoning Panel** | When a model outputs reasoning content (`reasoning` or `reasoning_content` fields), it appears in a dedicated expandable panel. |
-| **Multi-Language Support** | Built-in support for English, French, Spanish, Portuguese, Chinese, Dutch, and Russian. Add custom languages via the Config tab. |
+| **Multi-Language Support** | Built-in support for English, French, Spanish, Portuguese, Chinese, and Dutch. Add custom languages via the Config tab. |
 | **Dynamic Temperature** | Automatically adjusts temperature based on content length — lower temperature for short text, higher for long text. |
 | **Custom Prompt Editor** | Edit, save, and reset any system prompt template. Custom prompts are persisted in `localStorage`. |
 | **Dark / Light Theme** | Toggle between dark and light themes with a single click. Your preference is saved automatically. |
@@ -55,20 +55,23 @@ LLMSidebar is a **Manifest V3** Chrome extension composed of four JavaScript mod
 
 ```
 LLMSidebar/
-├── background.js          # Service worker: context menus, sidebar activation
-├── sidepanel.html         # Sidebar UI: tabs, config, results, theming
-├── sidepanel.js           # Sidebar logic: model loading, analysis, prompt mgmt
-├── api.js                 # API layer: content extraction, SSE streaming
-├── markdownParser.js      # Markdown-to-HTML converter for streamed results
+├── background.js              # Service worker: context menus, sidebar activation
+├── sidepanel.html             # Sidebar UI: tabs, config, results, theming
+├── sidepanel.css              # Sidebar styles: dark/light themes, components
+├── sidepanel.js               # Sidebar logic: model loading, analysis, event handlers
+├── sidepanel_config.js        # Config management: prompts, languages, settings persistence
+├── api.js                     # API layer: LM Studio SSE streaming, model loading
+├── extractPageContent.js      # Page content extraction via script injection
+├── markdownParser.js          # Markdown-to-HTML converter for streamed results
 ├── config/
-│   ├── system-prompts.json  # Default prompt templates (10 task types)
-│   └── lang.json            # Language code → name mappings
+│   ├── system-prompts.json    # Default prompt templates (11 task types)
+│   └── lang.json              # Language code → name mappings
 ├── icons/
 │   ├── icon16.png
 │   ├── icon32.png
 │   ├── icon48.png
 │   └── icon128.png
-├── manifest.json          # Extension manifest (MV3)
+├── manifest.json              # Extension manifest (MV3)
 └── README.md
 ```
 
@@ -78,8 +81,10 @@ LLMSidebar/
 |---|---|
 | **`background.js`** | Registers the "Send to LLM" context menu. When clicked, opens the sidebar and forwards the selected text. Also sets `openPanelOnActionClick` so clicking the toolbar icon opens the sidebar. |
 | **`sidepanel.html`** | The entire sidebar UI. Contains two tabs (Output and Config), CSS styles for dark/light themes, the model selector, task type dropdown, language picker, prompt editor, and result display areas. |
-| **`sidepanel.js`** | Core logic: loads models from LM Studio, initializes prompts and languages, handles tab switching, theme toggling, config persistence, prompt editing, language management, and orchestrates the analysis pipeline. |
-| **`api.js`** | `extractPageContent()` — injects a script into the target tab to grab selected text or main page content. `streamChatCompletion()` — sends the request to LM Studio and parses SSE stream, delivering chunks to callbacks. |
+| **`sidepanel.js`** | Core logic: loads models from LM Studio, initializes prompts and languages, handles tab switching, theme toggling, and orchestrates the analysis pipeline. |
+| **`sidepanel_config.js`** | Configuration management: loads/saves config to localStorage, manages prompt templates, custom languages, prompt editor state, and config UI event handlers. |
+| **`api.js`** | `streamChatCompletion()` — sends the request to LM Studio and parses SSE stream, delivering chunks to callbacks. `loadModelsFromAPI()` — fetches available models from the LM Studio local server. |
+| **`extractPageContent.js`** | `extractPageContent()` — injects a script into the target tab to grab selected text or main page content. |
 | **`markdownParser.js`** | Converts streamed Markdown into HTML in the browser. Supports headings, bold, italic, links, inline code, code blocks, lists, blockquotes, horizontal rules, and paragraphs. Escapes HTML to prevent XSS. |
 
 ### Data Flow
@@ -176,7 +181,7 @@ The extension queries `http://localhost:1234/api/v0/models` to populate the mode
 
 ### Task Types
 
-The sidebar supports 10 built-in task types, each with a curated system prompt:
+The sidebar supports 11 built-in task types, each with a curated system prompt:
 
 | Task | Description |
 |---|---|
@@ -187,14 +192,14 @@ The sidebar supports 10 built-in task types, each with a curated system prompt:
 | **Grammar Correction** | Fixes all grammatical, spelling, and punctuation errors while preserving style. |
 | **Explain** | Breaks down complex concepts using analogies and digestible explanations. |
 | **Bulleted List** | Converts text into organized bullet points grouped under subheadings. |
-| **Tone Change** | Rewrites text to shift tone (professional, casual, persuasive, empathetic). |
+| **Change Tone** | Rewrites text to shift tone (professional, casual, persuasive, empathetic). |
 | **ELI5** | Explains content as if to a 5-year-old — simple words, fun analogies, no jargon. |
 | **Caveman** | Rewrites text in humorous caveman speech while preserving core meaning. |
 | **Haiku** | Converts text into a series of interconnected 5-7-5 syllable haikus. |
 
 ### Language Support
 
-The extension ships with 7 built-in languages defined in `config/lang.json`:
+The extension ships with 6 built-in languages defined in `config/lang.json`:
 
 | Code | Language |
 |---|---|
@@ -202,9 +207,8 @@ The extension ships with 7 built-in languages defined in `config/lang.json`:
 | `french` | French |
 | `spanish` | Spanish |
 | `portuguese` | Portuguese |
-| `chinese` | Chinese (Simplified) |
+| `chinese` | Chinese |
 | `dutch` | Dutch |
-| `russian` | Russian |
 
 **Adding custom languages**: In the Config tab, enter a language code (e.g., `ja`) and name (e.g., `Japanese`), then click **Add Language**. Custom languages are saved to `localStorage` and appear in the language dropdown.
 
@@ -232,7 +236,7 @@ Controls the maximum number of characters extracted from the page. Default: **80
 
 ## Prompt Editor
 
-The Config tab includes a **Prompt Editor** for customizing any of the 10 task type prompts.
+The Config tab includes a **Prompt Editor** for customizing any of the 11 task type prompts.
 
 ### How It Works
 
@@ -357,7 +361,7 @@ LLMSidebar ships with **dark** and **light** themes, controlled via the `data-th
 
 ### Toggle
 
-Click the **🌓** button in the header to switch themes. The preference is saved to `localStorage` and restored on next load.
+Click the **theme toggle** button in the header to switch themes. The preference is saved to `localStorage` and restored on next load.
 
 ---
 
