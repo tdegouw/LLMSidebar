@@ -7,7 +7,7 @@
  * @param {function} onReasoning - Callback for each streamed reasoning chunk
  * @returns {Promise<string>} The full accumulated response
  */
-async function streamChatCompletion(model, promptText, content, onChunk, onReasoning) {
+async function streamChatCompletion(model, promptText, content, onChunk, onReasoning, signal) {
     // Use higher temperature for longer content to maintain quality with more context
     const temperature = (typeof CONFIG !== 'undefined' && CONFIG.temperature) || 0.6;
     const threshold = (typeof CONFIG !== 'undefined' && CONFIG.temperatureThreshold) || 1000;
@@ -25,7 +25,8 @@ async function streamChatCompletion(model, promptText, content, onChunk, onReaso
             ],
             temperature: resolvedTemp,
             stream: true
-        })
+        }),
+        signal: signal
     });
 
     if (!response.ok) {

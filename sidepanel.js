@@ -1,4 +1,5 @@
 let modelsLoaded = false;
+let currentAbortController = null;
 
 /**
  * Updates the header title to show the currently selected model.
@@ -87,16 +88,20 @@ const tabContents = document.querySelectorAll('.tab-content');
  * @returns {Promise<void>}
  */
 async function performAnalysis(contentToSend = null) {
-    // Ensure prompts are loaded before proceeding
+    // Always create a fresh controller (in case it was called directly from button)
+    if (currentAbortController) {
+        currentAbortController.abort();
+    }
+    currentAbortController = new AbortController();
+    const signal = currentAbortController.signal;
+
     if (!promptsInitialized) {
         await initializePrompts();
     }
 
     if (!contentToSend) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab) {
-            throw new Error("No active tab found.");
-        }
+        if (!tab) throw new Error("No active tab found.");
         contentToSend = await extractPageContent(tab.id);
     }
 
@@ -104,57 +109,58 @@ async function performAnalysis(contentToSend = null) {
         throw new Error("No text found to analyze!");
     }
 
-    // Hide loading overlay - streaming text is the visual feedback
     loadingOverlay.classList.remove('active');
     errorOverlay.classList.remove('active');
     statusIndicator.classList.add('active');
 
     try {
         const selectedModel = llmSelect.value;
-        if (!selectedModel) {
-            throw new Error("Please select an LLM model first.");
-        }
+        if (!selectedModel) throw new Error("Please select an LLM model first.");
+
         const promptType = promptSelect.value;
         currentLang = getAllLangs()[langSelect.value] || 'English';
 
-        // Verify we have a function before calling
         if (typeof PROMPTS[promptType] !== 'function') {
-            console.error('PROMPTS object state:', PROMPTS);
             throw new Error(`Invalid prompt type: ${promptType}`);
         }
 
         const promptText = PROMPTS[promptType](currentLang);
 
-        // Clear previous results
         resultBody.innerHTML = '';
         reasoningBody.textContent = '';
         reasoningBody.dataset.raw = '';
         reasoningContainer.style.display = 'none';
+
         let accumulated = '';
 
-        // Stream the response
-        await streamChatCompletion(selectedModel, promptText, contentToSend, (chunk) => {
-            accumulated += chunk;
-            resultBody.innerHTML = markdownToHtml(accumulated);
-        }, (reasoningChunk) => {
-            reasoningContainer.style.display = 'block';
-            reasoningBody.dataset.raw = (reasoningBody.dataset.raw || '') + reasoningChunk;
-            reasoningBody.innerHTML = markdownToHtml(reasoningBody.dataset.raw);
-            reasoningBody.scrollTop = reasoningBody.scrollHeight;
-        });
+        await streamChatCompletion(
+            selectedModel,
+            promptText,
+            contentToSend,
+            (chunk) => {
+                accumulated += chunk;
+                resultBody.innerHTML = markdownToHtml(accumulated);
+            },
+            (reasoningChunk) => {
+                reasoningContainer.style.display = 'block';
+                reasoningBody.dataset.raw = (reasoningBody.dataset.raw || '') + reasoningChunk;
+                reasoningBody.innerHTML = markdownToHtml(reasoningBody.dataset.raw);
+                reasoningBody.scrollTop = reasoningBody.scrollHeight;
+            },
+            signal
+        );
 
-        // Final render of results
         resultBody.innerHTML = markdownToHtml(accumulated);
 
     } catch (error) {
-        console.error('Error during analysis:', error);
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('network')) {
-            errorMessage.textContent = 'Cannot connect to LM Studio. Is it running on port 1234?';
-        } else if (error.message.includes('select an LLM model')) {
-            errorMessage.textContent = 'Please select a model in the Config tab.';
-        } else {
-            errorMessage.textContent = error.message;
+        if (error.name === 'AbortError') {
+            console.log('[LLMSidebar] Previous request aborted');
+            return;
         }
+        console.error('Error during analysis:', error);
+        errorMessage.textContent = error.message.includes('Failed to fetch') 
+            ? 'Cannot connect to LM Studio. Is it running on port 1234?' 
+            : error.message;
         errorOverlay.classList.add('active');
     } finally {
         loadingOverlay.classList.remove('active');
@@ -162,21 +168,19 @@ async function performAnalysis(contentToSend = null) {
     }
 }
 
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "LLMsidebarMessage") {
-        console.log("Data received from context menu:", message.data);
-
         const selectionText = message.data.selectionText || '';
 
-        // Open the sidebar (in case it's closed)
-        chrome.sidePanel.open({ tabId: message.data.tabId }).catch(() => {});
+        // Abort any previous request immediately when new context menu click comes in
+        if (currentAbortController) {
+            currentAbortController.abort();
+        }
+        currentAbortController = new AbortController();
 
-        // Perform analysis with the selected text - this will now wait for prompts to load
-        performAnalysis(selectionText)
-            .catch(err => {
-                console.error(err);
-            });
+        performAnalysis(selectionText).catch(err => {
+            if (err.name !== 'AbortError') console.error(err);
+        });
     }
 });
 
