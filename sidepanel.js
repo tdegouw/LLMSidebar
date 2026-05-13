@@ -148,7 +148,13 @@ async function performAnalysis(contentToSend = null) {
 
     } catch (error) {
         console.error('Error during analysis:', error);
-        errorMessage.textContent = error.message;
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('network')) {
+            errorMessage.textContent = 'Cannot connect to LM Studio. Is it running on port 1234?';
+        } else if (error.message.includes('select an LLM model')) {
+            errorMessage.textContent = 'Please select a model in the Config tab.';
+        } else {
+            errorMessage.textContent = error.message;
+        }
         errorOverlay.classList.add('active');
     } finally {
         loadingOverlay.classList.remove('active');
@@ -230,6 +236,15 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     analyzeBtn.addEventListener('click', () => {
         performAnalysis();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        resultBody.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><p class="empty-state-text">Click "Process Page" to analyze content</p></div>';
+        reasoningContainer.style.display = 'none';
+        reasoningBody.textContent = '';
+        reasoningBody.dataset.raw = '';
+        errorOverlay.classList.remove('active');
+        loadingOverlay.classList.remove('active');
     });
 
     // Maximize reasoning panel

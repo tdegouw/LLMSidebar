@@ -9,6 +9,10 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Send to LLM",
     contexts: ["selection"]   
   });
+
+  chrome.sidePanel.setPanelBehavior({ 
+    openPanelOnActionClick: true 
+});
 });
 
 // Handle context menu click: open the side panel and send the selected text to it
@@ -29,6 +33,3 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 
-chrome.sidePanel.setPanelBehavior({ 
-  openPanelOnActionClick: true 
-});

@@ -208,9 +208,35 @@ function createPromptFunction(template) {
  * Initializes the prompt system by loading prompt templates.
  * @returns {Promise<void>}
  */
+/**
+ * Populates #promptSelect and #promptEditorSelect from DEFAULT_PROMPTS keys.
+ */
+function populateTaskSelects() {
+    const keys = Object.keys(DEFAULT_PROMPTS);
+    
+    // #promptSelect - output tab with display labels
+    promptSelect.innerHTML = '';
+    for (const key of keys) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        promptSelect.appendChild(opt);
+    }
+    
+    // #promptEditorSelect - config tab with raw key names
+    promptEditorSelect.innerHTML = '';
+    for (const key of keys) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = key;
+        promptEditorSelect.appendChild(opt);
+    }
+}
+
 async function initializePrompts() {
     if (promptsInitialized) return;
     await loadPrompts();
+    populateTaskSelects();
     promptsInitialized = true;
 }
 
