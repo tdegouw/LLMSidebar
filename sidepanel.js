@@ -91,21 +91,58 @@ const analyzeBtn = document.getElementById('analyzeBtn');
 const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
 
-function setProcessingState(isProcessing) {
-    // Control Stop + Analyze buttons
-    if (stopBtn) stopBtn.style.display = isProcessing ? 'inline' : 'none';
-    if (analyzeBtn) analyzeBtn.style.display = isProcessing ? 'none' : 'inline';
+const UIState = {
+    /**
+     * Main method to control generation/processing state
+     */
+    setProcessing(isProcessing) {
+        // Stop button should be visible while processing
+        if (stopBtn) {
+            stopBtn.style.display = isProcessing ? 'inline' : 'none';
+        }
 
-    // Control the processing dot
-    if (statusIndicator) {
-        statusIndicator.classList.toggle('active', isProcessing);
-    }
 
-    // When stopping, also hide overlays
-    if (!isProcessing) {
-        errorOverlay.classList.remove('active');
+        // Analyze button
+        if (analyzeBtn) {
+            analyzeBtn.style.display = isProcessing ? 'none' : 'inline';
+        }
+
+        // Processing dot in header
+        if (statusIndicator) {
+            statusIndicator.classList.toggle('active', isProcessing);
+        }
+
+        // Disable key form controls during generation
+        if (llmSelect) llmSelect.disabled = isProcessing;
+        if (promptSelect) promptSelect.disabled = isProcessing;
+
+        // Hide Copy button while processing
+        if (copyBtn) {
+            copyBtn.style.display = isProcessing ? 'none' : 'inline';
+        }
+    },
+
+    /**
+     * Show error state
+     */
+    setError(message) {
+        this.setProcessing(false);
+        
+        if (errorMessage) errorMessage.textContent = message;
+        if (errorOverlay) errorOverlay.classList.add('active');
+    },
+
+    /**
+     * Reset everything back to idle state
+     */
+    reset() {
+        this.setProcessing(false);
+        
+        if (errorOverlay) errorOverlay.classList.remove('active');
     }
-}
+};
+
+
 
 /**
  * Performs an LLM analysis on the given content (or the current page content).
@@ -114,32 +151,31 @@ function setProcessingState(isProcessing) {
  * @returns {Promise<void>}
  */
 async function performAnalysis(contentToSend = null) {
-    // Always create a fresh controller (in case it was called directly from button)
     if (currentAbortController) {
         currentAbortController.abort();
     }
     currentAbortController = new AbortController();
     const signal = currentAbortController.signal;
-    setProcessingState(true);
+
+    UIState.setProcessing(true);
 
     if (!promptsInitialized) {
         await initializePrompts();
     }
 
     if (!contentToSend) {
-
-
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab) {
+            UIState.reset();
             throw new Error("No active tab found.");
         }
         contentToSend = await extractPageContent(tab.id);
     }
 
     if (!contentToSend || contentToSend.trim() === '') {
+        UIState.reset();
         throw new Error("No text found to analyze!");
     }
-
 
     try {
         const selectedModel = llmSelect.value;
@@ -182,16 +218,11 @@ async function performAnalysis(contentToSend = null) {
 
     } catch (error) {
         if (error.name === 'AbortError') {
-            console.log('[LLMSidebar] Previous request aborted');
             return;
         }
-        console.error('Error during analysis:', error);
-        errorMessage.textContent = error.message.includes('Failed to fetch') 
-            ? 'Cannot connect to LM Studio. Is it running on port 1234?' 
-            : error.message;
-        errorOverlay.classList.add('active');
+        UIState.setError(error.message);
     } finally {
-        setProcessingState(false);
+        UIState.setProcessing(false);
         currentAbortController = null;
     }
 }
