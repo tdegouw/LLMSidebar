@@ -18,7 +18,13 @@ chrome.runtime.onInstalled.addListener(() => {
 // Handle context menu click: open the side panel and send the selected text to it
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== MENU_ID) return;
-  await chrome.sidePanel.open({ tabId: tab.id });
+  // In background.js, after open:
+  chrome.sidePanel.open({ tabId: tab.id }).then(() => {
+    // Small delay or use a "ready" message from sidepanel
+    setTimeout(() => {
+      chrome.runtime.sendMessage(message).catch(() => {});
+    }, 150);
+  }).catch(err => console.error("Failed to open side panel", err));
 
   const message = {
     type: "LLMsidebarMessage",

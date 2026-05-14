@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (currentAbortController) {
             currentAbortController.abort();
         }
-        setProcessingState(false);
+        UIState.setProcessing(false);
     });
 
     clearBtn.addEventListener('click', () => {
@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         reasoningBody.textContent = '';
         reasoningBody.dataset.raw = '';
         errorOverlay.classList.remove('active');
-        setProcessingState(false);
+        UIState.setProcessing(false);
     });
 
     copyBtn.addEventListener('click', async () => {
