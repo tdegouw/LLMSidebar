@@ -116,9 +116,21 @@ async function performAnalysis(contentToSend = null) {
     }
 
     if (!contentToSend) {
+        // Show loading overlay with extraction message
+        loadingOverlay.classList.add('active');
+        const loadingText = loadingOverlay.querySelector('.loading-text');
+        if (loadingText) loadingText.textContent = 'Extracting page content...';
+
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab) throw new Error("No active tab found.");
+        if (!tab) {
+            loadingOverlay.classList.remove('active');
+            throw new Error("No active tab found.");
+        }
+
         contentToSend = await extractPageContent(tab.id);
+
+        // Reset loading text for generation phase
+        if (loadingText) loadingText.textContent = 'Analyzing...';
     }
 
     if (!contentToSend || contentToSend.trim() === '') {
