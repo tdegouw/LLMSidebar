@@ -83,6 +83,7 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 const errorOverlay = document.getElementById('errorOverlay');
 const statusIndicator = document.getElementById('statusIndicator');
 const errorMessage = document.getElementById('errorMessage');
+const copyBtn = document.getElementById('copyBtn');
 const clearBtn = document.getElementById('clearBtn');
 const stopBtn = document.getElementById('stopBtn');
 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -287,6 +288,23 @@ document.addEventListener('DOMContentLoaded', async function () {
         errorOverlay.classList.remove('active');
         loadingOverlay.classList.remove('active');
         showCancelButton(false);
+    });
+
+    copyBtn.addEventListener('click', async () => {
+        const textToCopy = resultBody.innerText || resultBody.textContent;
+        if (!textToCopy) return;
+
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✅';
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 1500);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
     });
 
     // Maximize reasoning panel
