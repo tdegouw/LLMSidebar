@@ -79,7 +79,6 @@ const resultBody = document.getElementById('resultBody');
 const reasoningBody = document.getElementById('reasoningBody');
 const reasoningContainer = document.getElementById('reasoningContainer');
 const maximizeReasoningBtn = document.getElementById('maximizeReasoningBtn');
-const loadingOverlay = document.getElementById('loadingOverlay');
 const errorOverlay = document.getElementById('errorOverlay');
 const statusIndicator = document.getElementById('statusIndicator');
 const errorMessage = document.getElementById('errorMessage');
@@ -92,9 +91,20 @@ const analyzeBtn = document.getElementById('analyzeBtn');
 const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
 
-function showCancelButton(show) {
-    if (stopBtn) stopBtn.style.display = show ? 'inline' : 'none';
-    if (analyzeBtn) analyzeBtn.style.display = !show ? 'inline' : 'none';
+function setProcessingState(isProcessing) {
+    // Control Stop + Analyze buttons
+    if (stopBtn) stopBtn.style.display = isProcessing ? 'inline' : 'none';
+    if (analyzeBtn) analyzeBtn.style.display = isProcessing ? 'none' : 'inline';
+
+    // Control the processing dot
+    if (statusIndicator) {
+        statusIndicator.classList.toggle('active', isProcessing);
+    }
+
+    // When stopping, also hide overlays
+    if (!isProcessing) {
+        errorOverlay.classList.remove('active');
+    }
 }
 
 /**
@@ -110,37 +120,26 @@ async function performAnalysis(contentToSend = null) {
     }
     currentAbortController = new AbortController();
     const signal = currentAbortController.signal;
-    showCancelButton(true);
+    setProcessingState(true);
 
     if (!promptsInitialized) {
         await initializePrompts();
     }
 
     if (!contentToSend) {
-        // Show loading overlay with extraction message
-        loadingOverlay.classList.add('active');
-        const loadingText = loadingOverlay.querySelector('.loading-text');
-        if (loadingText) loadingText.textContent = 'Extracting page content...';
+
 
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab) {
-            loadingOverlay.classList.remove('active');
             throw new Error("No active tab found.");
         }
-
         contentToSend = await extractPageContent(tab.id);
-
-        // Reset loading text for generation phase
-        if (loadingText) loadingText.textContent = 'Analyzing...';
     }
 
     if (!contentToSend || contentToSend.trim() === '') {
         throw new Error("No text found to analyze!");
     }
 
-    loadingOverlay.classList.remove('active');
-    errorOverlay.classList.remove('active');
-    statusIndicator.classList.add('active');
 
     try {
         const selectedModel = llmSelect.value;
@@ -192,9 +191,7 @@ async function performAnalysis(contentToSend = null) {
             : error.message;
         errorOverlay.classList.add('active');
     } finally {
-        loadingOverlay.classList.remove('active');
-        statusIndicator.classList.remove('active');
-        showCancelButton(false);
+        setProcessingState(false);
         currentAbortController = null;
     }
 }
@@ -277,7 +274,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (currentAbortController) {
             currentAbortController.abort();
         }
-        showCancelButton(false);
+        setProcessingState(false);
     });
 
     clearBtn.addEventListener('click', () => {
@@ -286,8 +283,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         reasoningBody.textContent = '';
         reasoningBody.dataset.raw = '';
         errorOverlay.classList.remove('active');
-        loadingOverlay.classList.remove('active');
-        showCancelButton(false);
+        setProcessingState(false);
     });
 
     copyBtn.addEventListener('click', async () => {
