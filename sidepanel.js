@@ -38,6 +38,15 @@ function populateModelSelect(selectElement, models) {
         selectElement.appendChild(option);
     }
 
+    // Restore last used model if it still exists
+    const lastModel = localStorage.getItem('lastSelectedModel');
+    if (lastModel) {
+        const optionExists = Array.from(selectElement.options).some(opt => opt.value === lastModel);
+        if (optionExists) {
+            selectElement.value = lastModel;
+        }
+    }
+
     // Update the header title after populating the select
     updateModelTitle();
 }
@@ -289,6 +298,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Initialize model loading
     loadLLMModels();
 
-    llmSelect.addEventListener('change', updateModelTitle);
+    llmSelect.addEventListener('change', () => {
+        localStorage.setItem('lastSelectedModel', llmSelect.value);
+        updateModelTitle();
+    });
 
 });
