@@ -75,11 +75,17 @@ const errorOverlay = document.getElementById('errorOverlay');
 const statusIndicator = document.getElementById('statusIndicator');
 const errorMessage = document.getElementById('errorMessage');
 const clearBtn = document.getElementById('clearBtn');
+const stopBtn = document.getElementById('stopBtn');
 const analyzeBtn = document.getElementById('analyzeBtn');
 
 // Tab navigation
 const tabs = document.querySelectorAll('.tab');
 const tabContents = document.querySelectorAll('.tab-content');
+
+function showCancelButton(show) {
+    if (stopBtn) stopBtn.style.display = show ? 'inline' : 'none';
+    if (analyzeBtn) analyzeBtn.style.display = !show ? 'inline' : 'none';
+}
 
 /**
  * Performs an LLM analysis on the given content (or the current page content).
@@ -94,6 +100,7 @@ async function performAnalysis(contentToSend = null) {
     }
     currentAbortController = new AbortController();
     const signal = currentAbortController.signal;
+    showCancelButton(true);
 
     if (!promptsInitialized) {
         await initializePrompts();
@@ -165,6 +172,8 @@ async function performAnalysis(contentToSend = null) {
     } finally {
         loadingOverlay.classList.remove('active');
         statusIndicator.classList.remove('active');
+        showCancelButton(false);
+        currentAbortController = null;
     }
 }
 
@@ -242,6 +251,13 @@ document.addEventListener('DOMContentLoaded', async function () {
         performAnalysis();
     });
 
+    stopBtn.addEventListener('click', () => {
+        if (currentAbortController) {
+            currentAbortController.abort();
+        }
+        showCancelButton(false);
+    });
+
     clearBtn.addEventListener('click', () => {
         resultBody.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><p class="empty-state-text">Click "Process Page" to analyze content</p></div>';
         reasoningContainer.style.display = 'none';
@@ -249,6 +265,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         reasoningBody.dataset.raw = '';
         errorOverlay.classList.remove('active');
         loadingOverlay.classList.remove('active');
+        showCancelButton(false);
     });
 
     // Maximize reasoning panel
