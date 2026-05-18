@@ -4,7 +4,6 @@ const resultBody = document.getElementById('resultBody');
 const reasoningBody = document.getElementById('reasoningBody');
 const reasoningContainer = document.getElementById('reasoningContainer');
 const maximizeReasoningBtn = document.getElementById('maximizeReasoningBtn');
-const errorOverlay = document.getElementById('errorOverlay');
 const statusIndicator = document.getElementById('statusIndicator');
 const copyBtn = document.getElementById('copyBtn');
 const clearBtn = document.getElementById('clearBtn');
@@ -48,9 +47,8 @@ clearBtn?.addEventListener('click', () => {
         </div>`;
     reasoningContainer.style.display = 'none';
     reasoningBody.textContent = '';
-    reasoningBody.dataset.raw = '';
-    if (errorOverlay) errorOverlay.classList.remove('active');
-    if (typeof UIState !== 'undefined') UIState.setProcessing(false);
+    reasoningBody.datset.raw = '';
+    UIState.clearError();
 });
 
 // Copy button

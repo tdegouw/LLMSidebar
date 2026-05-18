@@ -1,5 +1,10 @@
-// ==================== CORE STATE & LOGIC ====================
 
+
+// ==================== UI Elements ===========================
+const errorMessage = document.getElementById('errorMessage');
+const errorOverlay = document.getElementById('errorOverlay');
+
+// ==================== CORE STATE & LOGIC ====================
 let modelsLoaded = false;
 let currentAbortController = null;
 
@@ -18,6 +23,11 @@ const UIState = {
         this.setProcessing(false);
         if (errorMessage) errorMessage.textContent = message;
         if (errorOverlay) errorOverlay.classList.add('active');
+    },
+    clearError() {
+        this.setProcessing(false);
+        if (errorMessage) errorMessage.textContent = '';
+        if (errorOverlay) errorOverlay.classList.remove('active');
     },
 
     reset() {
