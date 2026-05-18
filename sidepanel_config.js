@@ -39,6 +39,48 @@ const DEFAULT_CONFIG = {
 
 let CONFIG = loadConfig();
 
+
+// ------------------- MODEL -------------------
+function populateModelSelect(selectElement, models) {
+    selectElement.innerHTML = '';
+    const llmModels = models.filter(m => m.type === 'llm' || m.type === 'vlm');
+
+    if (llmModels.length > 0) {
+        llmModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = `${model.id} (${model.state})`;
+            selectElement.appendChild(option);
+        });
+    } else {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No LLM models found';
+        selectElement.appendChild(option);
+    }
+
+    const lastModel = localStorage.getItem('lastSelectedModel');
+    if (lastModel && Array.from(selectElement.options).some(opt => opt.value === lastModel)) {
+        selectElement.value = lastModel;
+    }
+    UIState.setCurrentModelName(llmSelect.value);
+}
+
+async function loadLLMModels() {
+    if (modelsLoaded) return;
+    modelsLoaded = true;
+    if (!llmSelect) return;
+
+    try {
+        const models = await loadModelsFromAPI();
+        populateModelSelect(llmSelect, models);
+    } catch (error) {
+        console.error('Failed to load models:', error);
+        llmSelect.innerHTML = '<option value="">LM Studio not available</option>';
+        updateModelTitle();
+    }
+}
+
 // ------------------- LANGUAGE -------------------------
 async function loadLang() {
     try {
@@ -92,6 +134,20 @@ async function initializeLang() {
     await loadLang();
     loadCustomLangs();
     rebuildLangSelect();
+
+    // === Restore Last Language selected  ===
+    const savedLang = localStorage.getItem('selectedLang');
+    if (savedLang && getAllLangs()[savedLang]) {
+        langSelect.value = savedLang;
+        currentLang = getAllLangs()[savedLang];
+        UIState.setCurrentLanguage(currentLang)
+    } else {
+        // fallback
+        const firstLang = Object.keys(getAllLangs())[0] || 'english';
+        langSelect.value = firstLang;
+        currentLang = getAllLangs()[firstLang] || 'English';
+        UIState.setCurrentLanguage(currentLang)
+    }
     langsInitialized = true;
 }
 
@@ -197,24 +253,10 @@ function saveConfig(config) {
 
 // ------------------- CONFIG EVENT HANDLERS -------------------------
 document.addEventListener('DOMContentLoaded', function () {
-    // Language
-    langSelect.addEventListener('change', function () {
-        currentLang = getAllLangs()[this.value] || 'English';
-        localStorage.setItem('selectedLang', this.value);
-        updateLangDisplay();
-    });
 
-    const savedLang = localStorage.getItem('selectedLang');
-    if (savedLang) {
-        langSelect.value = savedLang;
-        currentLang = getAllLangs()[savedLang] || 'English';
-    }
-
-    function updateLangDisplay() {
-        const display = document.getElementById('currentLangDisplay');
-        if (display) display.textContent = 'Current language: ' + currentLang;
-    }
-    updateLangDisplay();
+    // Initial model load
+    loadLLMModels();
+    initializeLang();
 
     // Prompt Editor
     function loadPromptIntoEditor(key) {
@@ -324,4 +366,20 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof loadLLMModels === 'function') loadLLMModels();
         });
     }
+
+
+    // Language
+    langSelect.addEventListener('change', function () {
+        console.info('Switching language to ' + langSelect.value)
+        currentLang = getAllLangs()[langSelect.value] || 'English';
+        localStorage.setItem('selectedLang', langSelect.value);
+        UIState.setCurrentLanguage(currentLang)
+    });
+
+    // Model change
+    llmSelect?.addEventListener('change', () => {
+        localStorage.setItem('lastSelectedModel', llmSelect.value);
+        UIState.setCurrentModelName(llmSelect.value);
+    });
+
 });

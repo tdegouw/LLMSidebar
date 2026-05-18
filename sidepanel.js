@@ -10,6 +10,9 @@ let currentAbortController = null;
 
 // ------------------- UI STATE -------------------
 const UIState = {
+    // UI State properties
+     currentLang: 'English',
+
     setProcessing(isProcessing) {
         if (stopBtn) stopBtn.style.display = isProcessing ? 'inline' : 'none';
         if (analyzeBtn) analyzeBtn.style.display = isProcessing ? 'none' : 'inline';
@@ -29,60 +32,26 @@ const UIState = {
         if (errorMessage) errorMessage.textContent = '';
         if (errorOverlay) errorOverlay.classList.remove('active');
     },
-
+    setCurrentModelName(modelname) {
+    const modelTitle = document.getElementById('modelTitle');
+        if (!modelTitle) return;
+        modelTitle.textContent = modelname || 'LMM Assistant';
+    },
+    setCurrentLanguage(language) {
+        this.currentLang = language;
+        console.info('Switched lang to ' + language)
+        const display = document.getElementById('currentLangDisplay');
+        if (display) {
+            display.textContent = 'Current language: ' + language;
+        }
+    },
+    getCurrentLang() {
+        return this.currentLang;
+    },
     reset() {
-        this.setProcessing(false);
-        if (errorOverlay) errorOverlay.classList.remove('active');
+        this.clearError();
     }
 };
-
-// ------------------- MODEL HANDLING -------------------
-function updateModelTitle() {
-    const modelTitle = document.getElementById('modelTitle');
-    if (!modelTitle || !llmSelect) return;
-    modelTitle.textContent = llmSelect.value || 'LMM Assistant';
-}
-
-function populateModelSelect(selectElement, models) {
-    selectElement.innerHTML = '';
-    const llmModels = models.filter(m => m.type === 'llm' || m.type === 'vlm');
-
-    if (llmModels.length > 0) {
-        llmModels.forEach(model => {
-            const option = document.createElement('option');
-            option.value = model.id;
-            option.textContent = `${model.id} (${model.state})`;
-            selectElement.appendChild(option);
-        });
-    } else {
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'No LLM models found';
-        selectElement.appendChild(option);
-    }
-
-    const lastModel = localStorage.getItem('lastSelectedModel');
-    if (lastModel && Array.from(selectElement.options).some(opt => opt.value === lastModel)) {
-        selectElement.value = lastModel;
-    }
-    updateModelTitle();
-}
-
-async function loadLLMModels() {
-    if (modelsLoaded) return;
-    modelsLoaded = true;
-
-    if (!llmSelect) return;
-
-    try {
-        const models = await loadModelsFromAPI();
-        populateModelSelect(llmSelect, models);
-    } catch (error) {
-        console.error('Failed to load models:', error);
-        llmSelect.innerHTML = '<option value="">LM Studio not available</option>';
-        updateModelTitle();
-    }
-}
 
 // ------------------- MAIN ANALYSIS FUNCTION -------------------
 async function performAnalysis(contentToSend = null) {
@@ -115,7 +84,7 @@ async function performAnalysis(contentToSend = null) {
         if (!selectedModel) throw new Error("Please select an LLM model first.");
 
         const promptType = promptSelect.value;
-        currentLang = getAllLangs()[langSelect.value] || 'English';
+        currentLang = UIState.getCurrentLang();
 
         if (typeof PROMPTS[promptType] !== 'function') {
             throw new Error(`Invalid prompt type: ${promptType}`);
@@ -199,13 +168,4 @@ document.addEventListener('DOMContentLoaded', async function () {
             updateAllThemeIcons(newTheme);
         });
     });
-
-    // Model change
-    llmSelect?.addEventListener('change', () => {
-        localStorage.setItem('lastSelectedModel', llmSelect.value);
-        updateModelTitle();
-    });
-
-    // Initial model load
-    loadLLMModels();
 });
