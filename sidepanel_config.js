@@ -21,24 +21,132 @@ const resetAllBtn = document.getElementById('resetAllBtn');
 const resetStatus = document.getElementById('resetStatus');
 
 // ------------------- STATE -------------------------
-let currentLang = 'English';
-let PROMPTS = {};
-let promptsInitialized = false;
-let DEFAULT_PROMPTS = {};
 
-let LANG = {};
-let langsInitialized = false;
-let CUSTOM_LANGS = {};
 
-const DEFAULT_CONFIG = {
-    maxLen: 8000,
-    temperature: 0.6,
-    temperatureThreshold: 1000,
-    temperatureHigh: 0.8
-};
 
-let CONFIG = loadConfig();
+const ConfigState = {
+    currentLang : 'English',
+    PROMPTS: {},
+    DEFAULT_PROMPTS: {},
+    LANG : {},
+    CUSTOM_LANGS : {},
+    DEFAULT_CONFIG : {
+        maxLen: 8000,
+        temperature: 0.6,
+        temperatureThreshold: 1000,
+        temperatureHigh: 0.8
+    },
+    CONFIG : {},
+    loadConfig(setDefault) {
+        if(setDefault) {
+            this.CONFIG = { ...this.DEFAULT_CONFIG };
+        }
 
+        try {
+            const stored = localStorage.getItem('llmSidebarConfig');
+            this.CONFIG = stored ? { ...ConfigState.DEFAULT_CONFIG, ...JSON.parse(stored) } : { ...ConfigState.DEFAULT_CONFIG };
+        } catch {
+            this.CONFIG = { ...ConfigState.DEFAULT_CONFIG };
+        }
+    },
+    saveConfig() {
+        localStorage.setItem('llmSidebarConfig', JSON.stringify(this.CONFIG));
+    },
+    promptsInitialized() {
+        return ConfigStateState.PROMPTS.length > 1
+    },
+    async loadPrompts() {
+        try {
+            const response = await fetch(chrome.runtime.getURL('config/') + 'system-prompts.json');
+            if (!response.ok) throw new Error(`Failed to load prompts: ${response.statusText}`);
+
+            const rawPrompts = await response.json();
+            this.DEFAULT_PROMPTS = { ...rawPrompts };
+
+            if (!localStorage.getItem('defaultPrompts')) {
+                localStorage.setItem('defaultPrompts', JSON.stringify(rawPrompts));
+            }
+
+            const customPrompts = getCustomPrompts();
+            this.PROMPTS = {};
+
+            for (const key in rawPrompts) {
+                const template = customPrompts[key] || rawPrompts[key];
+                this.PROMPTS[key] = createPromptFunction(template);
+            }
+        } catch (error) {
+            console.error('FATAL ERROR loading prompts:', error);
+            this.PROMPTS = {};
+            this.DEFAULT_PROMPTS = {};
+        }
+    },
+    async loadLang() {
+        try {
+            const response = await fetch(chrome.runtime.getURL('config/') + 'lang.json');
+            if (!response.ok) throw new Error(`Failed to load lang.json: ${response.statusText}`);
+            ConfigState.LANG = await response.json();
+        } catch (error) {
+            console.error('FATAL ERROR: Could not load language config.', error);
+            ConfigState.LANG = { english: 'English' };
+        }
+    },
+    async initializeLang(langSelectElement) {
+        await this.loadLang();
+        this.loadCustomLangs();
+        this.rebuildLangSelect(langSelectElement);
+
+        // === Restore Last Language selected  ===
+        const savedLang = localStorage.getItem('selectedLang');
+        if (savedLang && this.getAllLangs()[savedLang]) {
+            langSelectElement.value = savedLang;
+            this.currentLang = this.getAllLangs()[savedLang];
+            UIState.setCurrentLanguage(this.currentLang)
+        } else {
+            // fallback
+            const firstLang = Object.keys(this.getAllLangs())[0] || 'english';
+            langSelect.value = firstLang;
+            this.currentLang = this.getAllLangs()[firstLang] || 'English';
+            UIState.setCurrentLanguage(this.currentLang)
+        }
+    },
+    /**
+     * Rebuilds the language <select> dropdown
+     * @param {HTMLSelectElement} langSelectElement
+     */
+    rebuildLangSelect(langSelectElement) {
+        if (!langSelectElement) return;
+        const allLangs = this.getAllLangs();
+        langSelectElement.innerHTML = '';
+        for (const code in allLangs) {
+            const opt = document.createElement('option');
+            opt.value = code;
+            opt.textContent = allLangs[code];
+            langSelectElement.appendChild(opt);
+        }
+    },
+    loadCustomLangs() {
+        try {
+            const stored = localStorage.getItem('customLangs');
+            ConfigState.CUSTOM_LANGS = stored ? JSON.parse(stored) : {};
+        } catch {
+            ConfigState.CUSTOM_LANGS = {};
+        }
+    },
+    getAllLangs() {
+        return { ...this.LANG, ...this.CUSTOM_LANGS };
+    },
+    addCustomLang(code, name) {
+        ConfigState.CUSTOM_LANGS[code] = name;
+        localStorage.setItem('customLangs', JSON.stringify(ConfigState.CUSTOM_LANGS));
+        rebuildLangSelect();
+    },
+    removeCustomLang(code) {
+        delete ConfigState.CUSTOM_LANGS[code];
+        localStorage.setItem('customLangs', JSON.stringify(ConfigState.CUSTOM_LANGS));
+        rebuildLangSelect();
+    }
+
+}
 
 // ------------------- MODEL -------------------
 function populateModelSelect(selectElement, models) {
@@ -81,77 +189,28 @@ async function loadLLMModels() {
     }
 }
 
-// ------------------- LANGUAGE -------------------------
-async function loadLang() {
-    try {
-        const response = await fetch(chrome.runtime.getURL('config/') + 'lang.json');
-        if (!response.ok) throw new Error(`Failed to load lang.json: ${response.statusText}`);
-        LANG = await response.json();
-    } catch (error) {
-        console.error('FATAL ERROR: Could not load language config.', error);
-        LANG = { english: 'English' };
-    }
-}
-
-function loadCustomLangs() {
-    try {
-        const stored = localStorage.getItem('customLangs');
-        CUSTOM_LANGS = stored ? JSON.parse(stored) : {};
-    } catch {
-        CUSTOM_LANGS = {};
-    }
-}
-
-function getAllLangs() {
-    return { ...LANG, ...CUSTOM_LANGS };
-}
-
-function addCustomLang(code, name) {
-    CUSTOM_LANGS[code] = name;
-    localStorage.setItem('customLangs', JSON.stringify(CUSTOM_LANGS));
-    rebuildLangSelect();
-}
-
-function removeCustomLang(code) {
-    delete CUSTOM_LANGS[code];
-    localStorage.setItem('customLangs', JSON.stringify(CUSTOM_LANGS));
-    rebuildLangSelect();
-}
-
-function rebuildLangSelect() {
-    const allLangs = getAllLangs();
-    langSelect.innerHTML = '';
-    for (const code in allLangs) {
-        const opt = document.createElement('option');
-        opt.value = code;
-        opt.textContent = allLangs[code];
-        langSelect.appendChild(opt);
-    }
-}
-
-async function initializeLang() {
-    if (langsInitialized) return;
-    await loadLang();
-    loadCustomLangs();
-    rebuildLangSelect();
-
-    // === Restore Last Language selected  ===
-    const savedLang = localStorage.getItem('selectedLang');
-    if (savedLang && getAllLangs()[savedLang]) {
-        langSelect.value = savedLang;
-        currentLang = getAllLangs()[savedLang];
-        UIState.setCurrentLanguage(currentLang)
-    } else {
-        // fallback
-        const firstLang = Object.keys(getAllLangs())[0] || 'english';
-        langSelect.value = firstLang;
-        currentLang = getAllLangs()[firstLang] || 'English';
-        UIState.setCurrentLanguage(currentLang)
-    }
-    langsInitialized = true;
-}
-
 // ------------------- PROMPTS -------------------------
+function populateTaskSelects(ConfigStateRef) {
+        const keys = Object.keys(ConfigStateRef.DEFAULT_PROMPTS);
+        // Output tab
+        promptSelect.innerHTML = '';
+        keys.forEach(key => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            promptSelect.appendChild(opt);
+        });
+
+        // Config tab
+        promptEditorSelect.innerHTML = '';
+        keys.forEach(key => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = key;
+            promptEditorSelect.appendChild(opt);
+        });
+}
+
 function createPromptFunction(template) {
     if (!template) return () => '';
     return (lang) => template.replace(/\${lang}/g, lang);
@@ -182,176 +241,119 @@ function isPromptCustomized(key) {
     return Object.prototype.hasOwnProperty.call(getCustomPrompts(), key);
 }
 
-async function loadPrompts() {
-    try {
-        const response = await fetch(chrome.runtime.getURL('config/') + 'system-prompts.json');
-        if (!response.ok) throw new Error(`Failed to load prompts: ${response.statusText}`);
 
-        const rawPrompts = await response.json();
-        DEFAULT_PROMPTS = { ...rawPrompts };
-
-        if (!localStorage.getItem('defaultPrompts')) {
-            localStorage.setItem('defaultPrompts', JSON.stringify(rawPrompts));
-        }
-
-        const customPrompts = getCustomPrompts();
-        PROMPTS = {};
-
-        for (const key in rawPrompts) {
-            const template = customPrompts[key] || rawPrompts[key];
-            PROMPTS[key] = createPromptFunction(template);
-        }
-    } catch (error) {
-        console.error('FATAL ERROR loading prompts:', error);
-        PROMPTS = {};
-        DEFAULT_PROMPTS = {};
-    }
-}
-
-function populateTaskSelects() {
-    const keys = Object.keys(DEFAULT_PROMPTS);
-
-    // Output tab
-    promptSelect.innerHTML = '';
-    keys.forEach(key => {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        promptSelect.appendChild(opt);
+// Language management
+function renderLangList() {
+    langList.innerHTML = '';
+    Object.keys(ConfigState.CUSTOM_LANGS).forEach(code => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface-elevated);border-radius:var(--border-radius-sm);font-size:13px;';
+        div.innerHTML = `<span>${ConfigState.CUSTOM_LANGS[code]}</span><button class="remove-lang-btn" data-code="${code}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;">✕</button>`;
+        langList.appendChild(div);
     });
 
-    // Config tab
-    promptEditorSelect.innerHTML = '';
-    keys.forEach(key => {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = key;
-        promptEditorSelect.appendChild(opt);
+    langList.querySelectorAll('.remove-lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            removeCustomLang(btn.dataset.code);
+            renderLangList();
+        });
     });
 }
 
-async function initializePrompts() {
-    if (promptsInitialized) return;
-    await loadPrompts();
-    populateTaskSelects();
-    promptsInitialized = true;
-}
-
-// ------------------- CONFIG -------------------------
-function loadConfig() {
-    try {
-        const stored = localStorage.getItem('llmSidebarConfig');
-        return stored ? { ...DEFAULT_CONFIG, ...JSON.parse(stored) } : { ...DEFAULT_CONFIG };
-    } catch {
-        return { ...DEFAULT_CONFIG };
+addLangBtn.addEventListener('click', () => {
+    const code = newLangCode.value.trim().toLowerCase();
+    const name = newLangName.value.trim();
+    if (code && name) {
+        addCustomLang(code, name);
+        newLangCode.value = '';
+        newLangName.value = '';
+        renderLangList();
     }
+});
+
+
+// Prompt Editor
+function loadPromptIntoEditor(key) {
+    const custom = getCustomPrompts()[key];
+    const template = custom || ConfigState.DEFAULT_PROMPTS[key] || '';
+    promptEditorTextarea.value = template;
+    editorHelp.textContent = custom 
+        ? 'Custom prompt - changes saved to localStorage' 
+        : 'Default prompt loaded from config';
 }
 
-function saveConfig(config) {
-    localStorage.setItem('llmSidebarConfig', JSON.stringify(config));
+function onConfigChange() {
+    ConfigState.CONFIG.maxLen = parseInt(maxLenInput.value) || ConfigState.DEFAULT_CONFIG.maxLen;
+    ConfigState.CONFIG.temperature = parseFloat(temperatureInput.value) || ConfigState.DEFAULT_CONFIG.temperature;
+    ConfigState.CONFIG.temperatureThreshold = parseInt(temperatureThresholdInput.value) || ConfigState.DEFAULT_CONFIG.temperatureThreshold;
+    ConfigState.CONFIG.temperatureHigh = parseFloat(temperatureHighInput.value) || ConfigState.DEFAULT_CONFIG.temperatureHigh;
+    ConfigState.saveConfig();
 }
 
-// ------------------- CONFIG EVENT HANDLERS -------------------------
-document.addEventListener('DOMContentLoaded', function () {
 
-    // Initial model load
-    loadLLMModels();
-    initializeLang();
+function fillTemperatureValues() {
+    maxLenInput.value = ConfigState.CONFIG.maxLen;
+    temperatureInput.value = ConfigState.CONFIG.temperature;
+    temperatureThresholdInput.value = ConfigState.CONFIG.temperatureThreshold;
+    temperatureHighInput.value = ConfigState.CONFIG.temperatureHigh;
+}
 
-    // Prompt Editor
-    function loadPromptIntoEditor(key) {
-        const custom = getCustomPrompts()[key];
-        const template = custom || DEFAULT_PROMPTS[key] || '';
-        promptEditorTextarea.value = template;
-        editorHelp.textContent = custom 
-            ? 'Custom prompt - changes saved to localStorage' 
-            : 'Default prompt loaded from config';
-    }
+async function resetAll() {
+    localStorage.removeItem('customLangs');
+    localStorage.removeItem('customPrompts');
+    localStorage.removeItem('defaultPrompts');
+    localStorage.removeItem('selectedLang');
+    localStorage.removeItem('theme');
+    localStorage.removeItem('llmSidebarConfig');
 
-    promptEditorSelect.addEventListener('change', () => loadPromptIntoEditor(promptEditorSelect.value));
-    savePromptBtn.addEventListener('click', () => {
-        saveCustomPrompt(promptEditorSelect.value, promptEditorTextarea.value);
-        initializePrompts();
-        loadPromptIntoEditor(promptEditorSelect.value);
-    });
-    resetPromptBtn.addEventListener('click', () => {
+    ConfigState.CUSTOM_LANGS = {};
+    ConfigState.loadConfig(true)
+    ConfigState.initializeLang();
+    await ConfigState.loadPrompts();
+    loadPromptIntoEditor('summarize');
+    fillTemperatureValues()
+    // Show the reset popup
+    resetStatus.style.display = 'block';
+    setTimeout(() => resetStatus.style.display = 'none', 3000);
+}
+
+function resetPrompt() {
         const key = promptEditorSelect.value;
         if (isPromptCustomized(key)) {
             removeCustomPrompt(key);
-            initializePrompts();
             loadPromptIntoEditor(key);
         }
-    });
-
-    loadPromptIntoEditor('summarize');
-
-    // Language management
-    function renderLangList() {
-        langList.innerHTML = '';
-        Object.keys(CUSTOM_LANGS).forEach(code => {
-            const div = document.createElement('div');
-            div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface-elevated);border-radius:var(--border-radius-sm);font-size:13px;';
-            div.innerHTML = `<span>${CUSTOM_LANGS[code]}</span><button class="remove-lang-btn" data-code="${code}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;">✕</button>`;
-            langList.appendChild(div);
-        });
-
-        langList.querySelectorAll('.remove-lang-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                removeCustomLang(btn.dataset.code);
-                renderLangList();
-            });
-        });
     }
 
-    addLangBtn.addEventListener('click', () => {
-        const code = newLangCode.value.trim().toLowerCase();
-        const name = newLangName.value.trim();
-        if (code && name) {
-            addCustomLang(code, name);
-            newLangCode.value = '';
-            newLangName.value = '';
-            renderLangList();
-        }
+// ------------------- CONFIG EVENT HANDLERS -------------------------
+document.addEventListener('DOMContentLoaded', async function () {
+
+    // On load, preload our config object en entries
+    await ConfigState.loadConfig();
+    await ConfigState.loadPrompts();
+    await ConfigState.initializeLang(langSelect);
+
+    // Initial model load
+    loadLLMModels();
+
+    // Fill the edit dropdown with prompts to edit
+    populateTaskSelects(ConfigState);
+
+    promptEditorSelect.addEventListener('change', () => loadPromptIntoEditor(promptEditorSelect.value));
+
+    savePromptBtn.addEventListener('click', () => {
+        saveCustomPrompt(promptEditorSelect.value, promptEditorTextarea.value);
+        loadPromptIntoEditor(promptEditorSelect.value);
     });
-    renderLangList();
+
+    resetPromptBtn.addEventListener('click', () => resetPrompt());
 
     // Reset All
-    resetAllBtn.addEventListener('click', () => {
-        localStorage.removeItem('customLangs');
-        localStorage.removeItem('customPrompts');
-        localStorage.removeItem('defaultPrompts');
-        localStorage.removeItem('selectedLang');
-        localStorage.removeItem('theme');
-        localStorage.removeItem('llmSidebarConfig');
+    resetAllBtn.addEventListener('click', () => resetAll()); 
 
-        CUSTOM_LANGS = {};
-        CONFIG = { ...DEFAULT_CONFIG };
-
-        initializeLang();
-        loadPromptIntoEditor('summarize');
-
-        maxLenInput.value = CONFIG.maxLen;
-        temperatureInput.value = CONFIG.temperature;
-        temperatureThresholdInput.value = CONFIG.temperatureThreshold;
-        temperatureHighInput.value = CONFIG.temperatureHigh;
-
-        resetStatus.style.display = 'block';
-        setTimeout(() => resetStatus.style.display = 'none', 3000);
-    });
-
-    // Load config values
-    maxLenInput.value = CONFIG.maxLen;
-    temperatureInput.value = CONFIG.temperature;
-    temperatureThresholdInput.value = CONFIG.temperatureThreshold;
-    temperatureHighInput.value = CONFIG.temperatureHigh;
-
-    function onConfigChange() {
-        CONFIG.maxLen = parseInt(maxLenInput.value) || DEFAULT_CONFIG.maxLen;
-        CONFIG.temperature = parseFloat(temperatureInput.value) || DEFAULT_CONFIG.temperature;
-        CONFIG.temperatureThreshold = parseInt(temperatureThresholdInput.value) || DEFAULT_CONFIG.temperatureThreshold;
-        CONFIG.temperatureHigh = parseFloat(temperatureHighInput.value) || DEFAULT_CONFIG.temperatureHigh;
-        saveConfig(CONFIG);
-    }
+    fillTemperatureValues()
+    loadPromptIntoEditor('summarize');
+    renderLangList();
 
     maxLenInput.addEventListener('input', onConfigChange);
     temperatureInput.addEventListener('input', onConfigChange);
@@ -367,13 +369,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-
     // Language
     langSelect.addEventListener('change', function () {
         console.info('Switching language to ' + langSelect.value)
-        currentLang = getAllLangs()[langSelect.value] || 'English';
+        ConfigState.currentLang = ConfigState.getAllLangs()[langSelect.value] || 'English';
         localStorage.setItem('selectedLang', langSelect.value);
-        UIState.setCurrentLanguage(currentLang)
+        UIState.setCurrentLanguage(ConfigState.currentLang)
     });
 
     // Model change

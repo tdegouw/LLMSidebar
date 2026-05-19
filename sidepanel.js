@@ -61,10 +61,6 @@ async function performAnalysis(contentToSend = null) {
 
     UIState.setProcessing(true);
 
-    if (!promptsInitialized) {
-        await initializePrompts();
-    }
-
     if (!contentToSend) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab) {
@@ -86,11 +82,11 @@ async function performAnalysis(contentToSend = null) {
         const promptType = promptSelect.value;
         currentLang = UIState.getCurrentLang();
 
-        if (typeof PROMPTS[promptType] !== 'function') {
+        if (typeof ConfigState.PROMPTS[promptType] !== 'function') {
             throw new Error(`Invalid prompt type: ${promptType}`);
         }
 
-        const promptText = PROMPTS[promptType](currentLang);
+        const promptText = ConfigState.PROMPTS[promptType](currentLang);
 
         resultBody.innerHTML = '';
         reasoningBody.textContent = '';
@@ -142,8 +138,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ------------------- INITIALIZATION -------------------
 document.addEventListener('DOMContentLoaded', async function () {
-    await initializePrompts();
-    await initializeLang();
 
     // Theme toggling
     const themeToggles = document.querySelectorAll('.theme-toggle-btn');
