@@ -44,9 +44,9 @@ const ConfigState = {
 
         try {
             const stored = localStorage.getItem('llmSidebarConfig');
-            this.CONFIG = stored ? { ...ConfigState.DEFAULT_CONFIG, ...JSON.parse(stored) } : { ...ConfigState.DEFAULT_CONFIG };
+            this.CONFIG = stored ? { ...this.DEFAULT_CONFIG, ...JSON.parse(stored) } : { ...this.DEFAULT_CONFIG };
         } catch {
-            this.CONFIG = { ...ConfigState.DEFAULT_CONFIG };
+            this.CONFIG = { ...this.DEFAULT_CONFIG };
         }
     },
     saveConfig() {
@@ -84,10 +84,10 @@ const ConfigState = {
         try {
             const response = await fetch(chrome.runtime.getURL('config/') + 'lang.json');
             if (!response.ok) throw new Error(`Failed to load lang.json: ${response.statusText}`);
-            ConfigState.LANG = await response.json();
+            this.LANG = await response.json();
         } catch (error) {
             console.error('FATAL ERROR: Could not load language config.', error);
-            ConfigState.LANG = { english: 'English' };
+            this.LANG = { english: 'English' };
         }
     },
     async initializeLang(langSelectElement) {
@@ -127,22 +127,22 @@ const ConfigState = {
     loadCustomLangs() {
         try {
             const stored = localStorage.getItem('customLangs');
-            ConfigState.CUSTOM_LANGS = stored ? JSON.parse(stored) : {};
+            this.CUSTOM_LANGS = stored ? JSON.parse(stored) : {};
         } catch {
-            ConfigState.CUSTOM_LANGS = {};
+            this.CUSTOM_LANGS = {};
         }
     },
     getAllLangs() {
         return { ...this.LANG, ...this.CUSTOM_LANGS };
     },
     addCustomLang(code, name) {
-        ConfigState.CUSTOM_LANGS[code] = name;
-        localStorage.setItem('customLangs', JSON.stringify(ConfigState.CUSTOM_LANGS));
+        this.CUSTOM_LANGS[code] = name;
+        localStorage.setItem('customLangs', JSON.stringify(this.CUSTOM_LANGS));
         rebuildLangSelect();
     },
     removeCustomLang(code) {
-        delete ConfigState.CUSTOM_LANGS[code];
-        localStorage.setItem('customLangs', JSON.stringify(ConfigState.CUSTOM_LANGS));
+        delete this.CUSTOM_LANGS[code];
+        localStorage.setItem('customLangs', JSON.stringify(this.CUSTOM_LANGS));
         rebuildLangSelect();
     }
 
