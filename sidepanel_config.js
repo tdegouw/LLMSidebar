@@ -305,7 +305,7 @@ async function resetAll() {
 
     ConfigState.CUSTOM_LANGS = {};
     ConfigState.loadConfig(true)
-    ConfigState.initializeLang();
+    ConfigState.initializeLang(langSelect);
     await ConfigState.loadPrompts();
     loadPromptIntoEditor('summarize');
     fillTemperatureValues()
@@ -346,7 +346,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     resetPromptBtn.addEventListener('click', () => resetPrompt());
 
     // Reset All
-    resetAllBtn.addEventListener('click', () => resetAll()); 
+    resetAllBtn.addEventListener('click', async () => {
+        await resetAll();
+    });
 
     fillTemperatureValues()
     loadPromptIntoEditor('summarize');
