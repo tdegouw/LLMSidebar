@@ -52,9 +52,6 @@ const ConfigState = {
     saveConfig() {
         localStorage.setItem('llmSidebarConfig', JSON.stringify(this.CONFIG));
     },
-    promptsInitialized() {
-        return ConfigStateState.PROMPTS.length > 1
-    },
     async loadPrompts() {
         try {
             const response = await fetch(chrome.runtime.getURL('config/') + 'system-prompts.json');
@@ -104,7 +101,7 @@ const ConfigState = {
         } else {
             // fallback
             const firstLang = Object.keys(this.getAllLangs())[0] || 'english';
-            langSelect.value = firstLang;
+            langSelectElement.value = firstLang;
             this.currentLang = this.getAllLangs()[firstLang] || 'English';
             UIState.setCurrentLanguage(this.currentLang)
         }
@@ -135,15 +132,15 @@ const ConfigState = {
     getAllLangs() {
         return { ...this.LANG, ...this.CUSTOM_LANGS };
     },
-    addCustomLang(code, name) {
+    addCustomLang(code, name, langSelectElement) {
         this.CUSTOM_LANGS[code] = name;
         localStorage.setItem('customLangs', JSON.stringify(this.CUSTOM_LANGS));
-        rebuildLangSelect();
+        this.rebuildLangSelect(langSelectElement);
     },
-    removeCustomLang(code) {
+    removeCustomLang(code, langSelectElement) {
         delete this.CUSTOM_LANGS[code];
         localStorage.setItem('customLangs', JSON.stringify(this.CUSTOM_LANGS));
-        rebuildLangSelect();
+        this.rebuildLangSelect(langSelectElement);
     }
 
 }
@@ -254,7 +251,7 @@ function renderLangList() {
 
     langList.querySelectorAll('.remove-lang-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            removeCustomLang(btn.dataset.code);
+            ConfigState.removeCustomLang(btn.dataset.code, langSelect);
             renderLangList();
         });
     });
@@ -264,7 +261,7 @@ addLangBtn.addEventListener('click', () => {
     const code = newLangCode.value.trim().toLowerCase();
     const name = newLangName.value.trim();
     if (code && name) {
-        addCustomLang(code, name);
+        ConfigState.addCustomLang(code, name, langSelect);
         newLangCode.value = '';
         newLangName.value = '';
         renderLangList();
