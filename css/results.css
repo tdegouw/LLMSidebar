@@ -1,0 +1,162 @@
+/**
+ * Results area – output containers, reasoning panel, streaming content,
+ * loading states, error states, and markdown rendering inside results.
+ */
+
+/* Result Card */
+.result-container {
+    background: var(--surface-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.reasoning-container {
+    min-height: auto;
+    display: none;
+}
+
+.reasoning-container.visible {
+    display: block;
+}
+
+.reasoning-body {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 12px 16px;
+    line-height: 1.6;
+    font-family: var(--font-sans);
+    height: calc(8 * 1.6em);
+    max-height: calc(8 * 1.6em);
+    overflow-y: scroll;
+    transition: height 0.2s ease, max-height 0.2s ease;
+}
+
+/* Maximized state for reasoning panel (controlled via class instead of inline styles) */
+.reasoning-body.maximized {
+    height: calc(100vh - 200px);
+    max-height: calc(100vh - 200px);
+}
+
+.result-header {
+    padding: 14px 16px;
+    background: var(--surface-elevated);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.result-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.result-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+/* Loading States */
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 15, 26, 0.8);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.spinner-circle {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(124, 58, 237, 0.3);
+    border-top-color: var(--primary-400);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+    margin-left: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Error State */
+.error-card {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--border-radius-md);
+    padding: 14px;
+    color: #ef4444;
+    font-size: 13px;
+}
+
+.error-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: rgba(239, 68, 68, 0.2);
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.error-close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+/* Markdown Styling inside Results */
+.result-content h1,
+.result-content h2,
+.result-content h3 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: var(--primary-300);
+    font-weight: 700;
+}
+
+.result-content p {
+    margin-bottom: 12px;
+}
+
+.result-content ul,
+.result-content ol {
+    margin-left: 20px;
+    margin-bottom: 12px;
+}
+
+.result-content li {
+    margin-bottom: 4px;
+}
+
+.result-content strong {
+    color: var(--primary-200);
+}

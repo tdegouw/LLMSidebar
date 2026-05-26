@@ -1,0 +1,97 @@
+/**
+ * Theme System for LLMSidebar
+ *
+ * All color, surface, and text variables + the body[data-theme] overrides live here.
+ * This file is the single place to touch when you want to:
+ *   - tweak dark/light
+ *   - add a completely new theme (high-contrast, sepia, OLED, etc.)
+ *
+ * How to add a future theme "foo":
+ *   1. Add a new block:
+ *        body[data-theme="foo"] {
+ *          --surface-bg: ...;
+ *          --text-primary: ...;
+ *          ... (only the vars that differ)
+ *        }
+ *   2. (Optional) Extend ThemeService with the name + icon.
+ *   3. (Optional) Let ThemeController render a picker instead of a simple toggle.
+ *
+ * Imported first by css/sidepanel.css so variables are available to all other modules.
+ */
+
+:root {
+    --primary-50: #ede9fe;
+    --primary-100: #ddd6fe;
+    --primary-200: #c4b5fd;
+    --primary-300: #a78bfa;
+    --primary-400: #8b5cf6;
+    --primary-500: #7c3aed;
+    --primary-600: #6d28d9;
+    --primary-700: #5b21b6;
+    --primary-800: #4c1d95;
+    --primary-900: #431486;
+
+    --surface-bg: #1a1a2e;
+    --surface-card: #16213e;
+    --surface-elevated: #0f0f1a;
+
+    --border-color: rgba(139, 92, 246, 0.2);
+
+    --text-primary: #ffffff;
+    --text-secondary: #b8b8d6;
+    --text-muted: #7c7c9a;
+
+    --accent-glow: radial-gradient(600px circle at 50% 50%, rgba(124, 58, 237, 0.15), transparent 70%);
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+
+    --border-radius-lg: 16px;
+    --border-radius-md: 12px;
+    --border-radius-sm: 8px;
+}
+
+/* Light theme overrides */
+body[data-theme="light"] {
+    --surface-bg: #f8fafc;
+    --surface-card: #ffffff;
+    --surface-elevated: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border-color: rgba(139, 92, 246, 0.1);
+}
+
+/* Subtle light overrides for components that need extra care */
+body[data-theme="light"] .bg-gradient {
+    background: linear-gradient(
+        135deg,
+        var(--surface-bg) 0%,
+        #e2e8f0 100%
+    );
+}
+
+body[data-theme="light"] .input-card {
+    background: var(--surface-card);
+    border-color: rgba(0,0,0,0.05);
+}
+
+/* Theme Toggle Button (global header) */
+.theme-toggle-btn {
+    background: var(--surface-card);
+    border: 1px solid var(--border-color);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 16px;
+}
+
+.theme-toggle-btn:hover {
+    border-color: var(--primary-400);
+    transform: rotate(15deg);
+}

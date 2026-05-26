@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMM Sidebar Assistant</title>
+    <link rel="stylesheet" href="css/sidepanel.css">
+</head>
+<body data-theme="dark">
+    <div class="bg-gradient"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            <span id="modelTitle">LMM Assistant</span>
+        </div>
+        <div class="header-actions">
+            <span class="status-indicator" id="statusIndicator"></span>
+            <button id="themeToggle" class="theme-toggle-btn" title="Toggle theme">🌓</button>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs">
+        <div class="tab active" data-tab="output">
+            <span class="tab-icon">📄</span>Output
+        </div>
+        <div class="tab" data-tab="config">
+            <span class="tab-icon">⚙️</span>Config
+        </div>
+    </nav>
+
+    <!-- Output Tab -->
+    <div id="output" class="tab-content active">
+        <!-- Prompt Type -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">📝</div>
+                <span class="card-title">Task Type</span>
+            </div>
+            <select id="promptSelect"></select>
+            <div id="currentLangDisplay" class="text-muted-small">
+                Current language: English
+            </div>
+            <button id="analyzeBtn" class="primary-btn margin-top-sm">
+                <span>⚡</span> Process Page
+            </button>
+            <button id="stopBtn" class="primary-btn stop-btn margin-top-sm" title="Stop generation">
+                <span>⏹️</span> Stop Processing
+            </button>
+        </div>
+
+        <div id="reasoningContainer" class="result-container reasoning-container">
+            <div class="result-header">
+                <span class="result-title">
+                    <span class="icon-emoji">🧠</span> Reasoning
+                </span>
+                <button id="maximizeReasoningBtn" class="icon-button" title="Maximize reasoning">⛶</button>
+            </div>
+            <div id="reasoningBody" class="reasoning-body">
+            </div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-header">
+                <span class="result-title">
+                    <span class="icon-emoji">📋</span> Results
+                </span>
+                <span>
+                    <button id="copyBtn" class="icon-button icon-button-lg" title="Copy result">📋</button>
+                    <button id="clearBtn" class="icon-button icon-button-lg" title="Clear results">✕</button>
+                </span>
+            </div>
+
+            <div class="result-body" id="resultBody">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p class="empty-state-text">Click "Process Page" to analyze content</p>
+                </div>
+            </div>
+
+            <div class="loading-overlay" id="errorOverlay">
+                <div class="error-card">
+                    <button class="error-close-btn" title="Dismiss error">✕</button>
+                    <span class="error-icon">⚠️</span>
+                    <span id="errorMessage">Analysis error occurred</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Tab -->
+    <div id="config" class="tab-content">
+        <div class="config-items">
+            <!-- Model Selector -->
+            <div class="input-card">
+                <div class="card-header">
+                    <div class="card-icon">🤖</div>
+                    <span class="card-title">Model</span>
+                </div>
+                <div class="flex-row">
+                    <select id="llmSelect">
+                        <option value="">— Select a model —</option>
+                    </select>
+                    <button type="button" id="refreshModelsBtn" class="refresh-btn" title="Refresh model list">🔄</button>
+                </div>
+                <div class="model-info">Loads from LM Studio local server</div>
+            </div>
+
+            <!-- Language Selector -->
+            <div class="input-card">
+                <div class="card-header">
+                    <div class="card-icon">🌐</div>
+                    <span class="card-title">Target Language</span>
+                </div>
+                <select id="langSelect">
+                    <option value="en">English</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- MAX_LEN Config -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">📏</div>
+                <span class="card-title">Max Page Content Length</span>
+            </div>
+            <input type="number" id="maxLenInput" min="1000" max="50000" step="500" value="8000" class="form-input">
+            <div class="model-info margin-top-xs">Maximum characters extracted from page content, make sure this is not larger than the context window of your model. (default: 8000)</div>
+        </div>
+
+        <!-- Temperature Config -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">🌡️</div>
+                <span class="card-title">Temperature</span>
+            </div>
+            <div class="temperature-row">
+                <div class="temperature-col">
+                    <label class="temperature-label">Low</label>
+                    <input type="number" id="temperatureInput" min="0" max="2" step="0.05" value="0.6" class="compact-input">
+                </div>
+                <div class="temperature-col">
+                    <label class="temperature-label">High</label>
+                    <input type="number" id="temperatureHighInput" min="0" max="2" step="0.05" value="0.8" class="compact-input">
+                </div>
+                <div class="temperature-col">
+                    <label class="temperature-label">Threshold (chars)</label>
+                    <input type="number" id="temperatureThresholdInput" min="100" max="10000" step="100" value="1000" class="compact-input">
+                </div>
+            </div>
+            <div class="model-info margin-top-xs">Low temperature used when content is below threshold. High temperature used when content exceeds threshold.</div>
+        </div>
+
+        <!-- Language Management -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">🌐</div>
+                <span class="card-title">Manage Languages</span>
+            </div>
+            <div class="flex-row margin-bottom-sm">
+                <input type="text" id="newLangCode" placeholder="Code (e.g. ja)" class="compact-input">
+                <input type="text" id="newLangName" placeholder="Name (e.g. Japanese)" class="compact-input">
+            </div>
+            <button id="addLangBtn" class="quick-action-btn full-width margin-bottom-sm">Add Language</button>
+            <div id="langList" class="lang-list"></div>
+        </div>
+
+        <!-- Prompt Editor -->
+        <div class="input-card">
+            <div class="card-header">
+                <div class="card-icon">✏️</div>
+                <span class="card-title">Edit Prompt</span>
+            </div>
+            <select id="promptEditorSelect" class="prompt-editor-select"></select>
+            <textarea id="promptEditorTextarea" rows="6" class="textarea-mono"></textarea>
+            <div class="flex-row prompt-actions">
+                <button id="savePromptBtn" class="primary-btn padding-sm font-size-sm">
+                    <span>💾</span> Save
+                </button>
+                <button id="resetPromptBtn" class="quick-action-btn padding-sm">
+                    Reset
+                </button>
+            </div>
+            <div class="model-info" id="editorHelp">Select a prompt type above to view and edit it</div>
+        </div>
+
+        <!-- Reset All -->
+        <div class="input-card reset-card">
+            <div class="card-header">
+                <div class="card-icon reset-icon">⚠️</div>
+                <span class="card-title reset-title">Reset All</span>
+            </div>
+            <p class="reset-description">
+                This will remove all your custom languages, edited prompts, and saved theme preference. The extension will return to its default state. Your language selection will also be reset.
+            </p>
+            <button id="resetAllBtn" class="danger-btn">
+                Reset All Settings
+            </button>
+            <div id="resetStatus" class="reset-status">
+                All settings have been reset to defaults.
+            </div>
+        </div>
+    </div>
+
+    <!-- New modular architecture (ES Modules) -->
+    <script type="module" src="sidepanel-init.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+/**
+ * LLMSidebar – Main stylesheet entry point.
+ *
+ * This file only imports the modular CSS files.
+ * All actual styles live in the imported modules for easier maintenance.
+ *
+ * Import order matters:
+ *   1. themes.css   → CSS variables + dark/light theme definitions (must be first)
+ *   2. base.css     → Reset, body, global typography, scrollbar, keyframes
+ *   3. layout.css   → Header, tabs, footer, responsive
+ *   4. components.css → Cards, buttons, selects, badges, empty states, etc.
+ *   5. results.css  → Output area, reasoning, loading, errors, markdown
+ *
+ * To add a new feature area later → just create a new .css file and @import it here.
+ */
+
+@import url("themes.css");
+@import url("base.css");
+@import url("layout.css");
+@import url("components.css");
+@import url("results.css");
+

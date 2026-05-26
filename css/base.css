@@ -1,0 +1,63 @@
+/**
+ * Base styles – reset, body, global typography, scrollbar, and shared animations.
+ * No component-specific or layout-specific rules here.
+ */
+
+/* Universal Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Base Document */
+body {
+    width: 100%;
+    min-width: 320px;
+    height: calc(100vh - 52px);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-bg);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    overflow: hidden;
+}
+
+/* Animated Background */
+.bg-gradient {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    background: linear-gradient(
+        135deg,
+        var(--surface-bg) 0%,
+        var(--surface-elevated) 100%
+    );
+}
+
+/* Scrollbar Styling (global) */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+/* Global Animations */
+@keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
