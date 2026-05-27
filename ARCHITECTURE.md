@@ -35,13 +35,14 @@ LLMSidebar/
 ├── adapters/                  # Ports to the outside world
 │   ├── llm-adapter.js         # Streaming chat + model loading (LM Studio compatible)
 │   ├── content-extractor.js   # Page content extraction via chrome.scripting
-│   └── messaging.js           # Sidepanel ↔ Background messaging abstraction
+│   ├── messaging.js           # Sidepanel ↔ Background messaging abstraction
+│   └── config-resources.js    # Loads the two static config JSONs (chrome.runtime.getURL + fetch)
 
 ├── services/                  # Business logic & state
 │   ├── analysis-service.js    # Orchestrates a full analysis run
 │   ├── config-service.js      # Prompts, languages, temperature config + persistence
 │   ├── storage.js             # Centralized localStorage wrapper
-│   └── theme-service.js       # Theme state (persistence + apply)
+│   └── theme-service.js       # Theme state (pure persistence only)
 
 ├── ui/                        # UI ownership (each owns its slice of the DOM)
 │   ├── config-view.js         # Coordinator + model selection + temperature + main language dropdown
@@ -95,7 +96,7 @@ The UI layer is deliberately split into small, focused modules so that each piec
 | `reset-view.js`               | Reset All section (button + temporary status) inside the Config tab  |
 | `output-view.js`              | Output tab content, streaming results, reasoning panel, error overlay, action buttons |
 | `tab-controller.js`           | Tab navigation and content switching                                 |
-| `theme-controller.js`         | The header theme toggle button (`#themeToggle`)                      |
+| `theme-controller.js`         | The header theme toggle button (`#themeToggle`) **and** `body[data-theme]` application (the only legal place for this DOM write) |
 | `header-view.js`              | Header elements that are not tab-specific (e.g. `#modelTitle`)       |
 | `analysis-controller.js`      | The two analysis entry points (Process Page + context menu "Send to LLM") and cross-view processing state coordination. Extracted to keep app.js thin. |
 
@@ -113,10 +114,10 @@ This principle was significantly strengthened during recent refactoring passes.
 
 ## Theming System
 
-Theming is deliberately split into two concerns:
+Theming is deliberately split into two concerns with strict ownership:
 
-- **ThemeService** (`services/theme-service.js`): Pure model. Handles persistence and applying `data-theme` to `<body>`.
-- **ThemeController** (`ui/theme-controller.js`): Owns the toggle button and icon logic. Makes it easy to evolve into a theme picker later.
+- **ThemeService** (`services/theme-service.js`): Pure model. Handles only persistence and the current theme name (no DOM).
+- **ThemeController** (`ui/theme-controller.js`): Owns the toggle button, icon updates, **and** applying the `data-theme` attribute to `<body>`. This is the sole module allowed to touch theme-related DOM.
 - **CSS** (`css/themes.css`): All variables and `[data-theme]` overrides live here. Adding a new theme is mostly a matter of adding one new `body[data-theme="new"]` block.
 
 ## CSS Organization
@@ -172,6 +173,7 @@ The architecture is prepared for:
 - CSS is well modularized.
 - Language system uses ISO 639-1 codes.
 - The architecture continues to improve in the direction of the AGENTS.md vision (small focused files, explicit DI, Composition Root stays honest).
+- **Layer violations fixed**: `services/theme-service.js` no longer touches DOM; resource loading moved from `services/config-service.js` into the new `adapters/config-resources.js`.
 
 The project is in an excellent position regarding separation of concerns and long-term maintainability.
 

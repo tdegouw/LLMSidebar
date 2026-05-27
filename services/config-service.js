@@ -1,10 +1,15 @@
 /**
  * Config Service.
- * Owns all configuration, prompts, languages, and their persistence.
- * Depends on an injected Storage instance.
+ *
+ * Owns all runtime configuration, prompts (default + custom), languages,
+ * and their persistence + derived state (prompt functions).
+ *
+ * Resource loading (chrome.runtime + fetch for the static JSONs) is
+ * delegated to an injected ConfigResources adapter so this service
+ * stays pure application logic per the layered architecture.
  */
 
-import { createPromptFunction, formatPromptKey } from '../core/prompts.js';
+import { createPromptFunction } from '../core/prompts.js';
 
 /** @type {import('../services/storage.js').Storage['keys']} */
 const KEYS = {
@@ -26,10 +31,15 @@ const DEFAULT_CONFIG = {
 /**
  * Creates the ConfigService.
  *
- * @param {import('../services/storage.js').Storage} storage
+ * @param {{ storage: import('./storage.js').Storage, configResources: import('../adapters/config-resources.js').ConfigResources }} deps
  * @returns {ConfigService}
  */
-export function createConfigService(storage) {
+export function createConfigService(deps = {}) {
+  const { storage, configResources } = deps;
+
+  if (!storage) throw new Error('createConfigService requires storage');
+  if (!configResources) throw new Error('createConfigService requires configResources');
+
   /** @type {any} */
   let state = {
     CONFIG: { ...DEFAULT_CONFIG },
@@ -60,23 +70,17 @@ export function createConfigService(storage) {
   }
 
   async function loadDefaultPrompts() {
-    const url = chrome.runtime.getURL('config/system-prompts.json');
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to load prompts: ${res.status}`);
-    const raw = await res.json();
+    const raw = await configResources.loadSystemPrompts();
     state.DEFAULT_PROMPTS = { ...raw };
 
-    // Cache defaults once
+    // Cache defaults once (application concern, kept here)
     if (!storage.get(KEYS.DEFAULT_PROMPTS)) {
       storage.set(KEYS.DEFAULT_PROMPTS, raw);
     }
   }
 
   async function loadLanguages() {
-    const url = chrome.runtime.getURL('config/lang.json');
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to load lang.json: ${res.status}`);
-    state.LANG = await res.json();
+    state.LANG = await configResources.loadLanguages();
   }
 
   function loadCustomLanguages() {

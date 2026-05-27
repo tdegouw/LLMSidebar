@@ -27,6 +27,7 @@ import { createThemeService } from './services/theme-service.js';
 import { createConfigService } from './services/config-service.js';
 import { createLLMAdapter } from './adapters/llm-adapter.js';
 import { createContentExtractor } from './adapters/content-extractor.js';
+import { createConfigResources } from './adapters/config-resources.js';
 import { createAnalysisService } from './services/analysis-service.js';
 import { createOutputView } from './ui/output-view.js';
 import { createConfigView } from './ui/config-view.js';
@@ -93,14 +94,17 @@ export const App = {
 
     this.themeService = createThemeService(this.storage);
 
-    // Dedicated controller owns the header toggle button + icon updates.
-    // ThemeService remains the pure "model" (persistence + body attribute).
+    // Dedicated controller owns the header toggle button, icon updates,
+    // and body[data-theme] application. ThemeService is now purely persistence.
     this.themeController = createThemeController({ themeService: this.themeService });
     this.themeController.initialize();
   },
 
   _createServicesAndAdapters() {
-    this.configService = createConfigService(this.storage);
+    // Explicit DI: config resources adapter owns the (chrome + fetch) loading of the two static JSONs.
+    // ConfigService stays pure application logic + state.
+    const configResources = createConfigResources();
+    this.configService = createConfigService({ storage: this.storage, configResources });
     // configService.initialize() is async → called later in _initializeUI
 
     this.llmAdapter = createLLMAdapter();

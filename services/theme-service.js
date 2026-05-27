@@ -1,27 +1,23 @@
 /**
  * Theme Service
  *
- * Handles dark/light theme persistence and application.
- * Small, single-responsibility module.
+ * Pure persistence service for the current theme name (dark/light).
+ * Handles only storage + normalization. DOM application (body[data-theme])
+ * is owned exclusively by ThemeController in the ui/ layer.
+ *
+ * Small, single-responsibility module. No globals, explicit DI required.
  */
-
-import { createStorage } from './storage.js';
 
 const THEME_KEY = 'theme';
 
-export function createThemeService(storage = createStorage()) {
+export function createThemeService(storage) {
   function getCurrentTheme() {
     return storage.get(THEME_KEY) || 'dark';
-  }
-
-  function applyTheme(theme) {
-    document.body.setAttribute('data-theme', theme);
   }
 
   function setTheme(theme) {
     const normalized = theme === 'light' ? 'light' : 'dark';
     storage.set(THEME_KEY, normalized);
-    applyTheme(normalized);
     return normalized;
   }
 
@@ -32,14 +28,11 @@ export function createThemeService(storage = createStorage()) {
   }
 
   function initialize() {
-    const saved = getCurrentTheme();
-    applyTheme(saved);
-    return saved;
+    return getCurrentTheme();
   }
 
   return {
     getCurrentTheme,
-    applyTheme,
     setTheme,
     toggleTheme,
     initialize,
