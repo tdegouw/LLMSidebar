@@ -36,12 +36,13 @@ LLMSidebar/
 │   ├── llm-adapter.js         # Streaming chat + model loading (LM Studio compatible)
 │   ├── content-extractor.js   # Page content extraction via chrome.scripting
 │   ├── messaging.js           # Sidepanel ↔ Background messaging abstraction
-│   └── config-resources.js    # Loads the two static config JSONs (chrome.runtime.getURL + fetch)
+│   ├── config-resources.js    # Loads the two static config JSONs (chrome.runtime.getURL + fetch)
+│   ├── active-tab.js          # Returns the ID of the currently active browser tab
+│   └── storage.js             # localStorage persistence adapter (browser I/O boundary)
 
 ├── services/                  # Business logic & state
 │   ├── analysis-service.js    # Orchestrates a full analysis run
 │   ├── config-service.js      # Prompts, languages, temperature config + persistence
-│   ├── storage.js             # Centralized localStorage wrapper
 │   └── theme-service.js       # Theme state (pure persistence only)
 
 ├── ui/                        # UI ownership (each owns its slice of the DOM)
@@ -49,6 +50,7 @@ LLMSidebar/
 │   ├── prompt-editor-view.js  # Prompt editor section (Config tab)
 │   ├── language-manager-view.js # Custom language add/remove (Config tab)
 │   ├── reset-view.js          # Reset All section (Config tab)
+│   ├── main-config-inputs-view.js # Main model/task/language selects (Config tab)
 │   ├── output-view.js         # Entire Output tab + streaming results
 │   ├── tab-controller.js      # Tab switching
 │   ├── theme-controller.js    # Header theme toggle button
@@ -90,10 +92,11 @@ The UI layer is deliberately split into small, focused modules so that each piec
 
 | Module                        | Owns                                                                 |
 |-------------------------------|----------------------------------------------------------------------|
-| `config-view.js`              | Coordinator for Config tab + model selection + temperature inputs + main language dropdown |
+| `config-view.js`              | Lightweight coordinator for the Config tab (5 focused sub-views) |
 | `prompt-editor-view.js`       | Prompt editor section inside the Config tab                          |
 | `language-manager-view.js`    | Custom language management (add/remove) inside the Config tab        |
 | `reset-view.js`               | Reset All section (button + temporary status) inside the Config tab  |
+| `main-config-inputs-view.js`  | Primary model / task / language selects + refresh in the Config tab  |
 | `output-view.js`              | Output tab content, streaming results, reasoning panel, error overlay, action buttons |
 | `tab-controller.js`           | Tab navigation and content switching                                 |
 | `theme-controller.js`         | The header theme toggle button (`#themeToggle`) **and** `body[data-theme]` application (the only legal place for this DOM write) |

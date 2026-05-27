@@ -1,22 +1,20 @@
 /**
  * Config Service.
  *
- * Owns all runtime configuration, prompts (default + custom), languages,
- * and their persistence + derived state (prompt functions).
+ * Thin coordinator for runtime configuration values.
+ * Prompt and language concerns have been extracted into focused services
+ * (PromptService and LanguageService) as part of P1-3 decomposition.
  *
- * Resource loading (chrome.runtime + fetch for the static JSONs) is
- * delegated to an injected ConfigResources adapter so this service
- * stays pure application logic per the layered architecture.
+ * Resource loading is delegated to ConfigResources adapter.
  */
 
-import { createPromptFunction } from '../core/prompts.js';
+import { createLanguageService } from './language-service.js';
+import { createPromptService } from './prompt-service.js';
 
-/** @type {import('../services/storage.js').Storage['keys']} */
+/** @type {import('../adapters/storage.js').Storage['keys']} */
 const KEYS = {
   CONFIG: 'llmSidebarConfig',
   CUSTOM_PROMPTS: 'customPrompts',
-  CUSTOM_LANGS: 'customLangs',
-  SELECTED_LANG: 'selectedLang',
   DEFAULT_PROMPTS: 'defaultPrompts',
 };
 
@@ -31,7 +29,7 @@ const DEFAULT_CONFIG = {
 /**
  * Creates the ConfigService.
  *
- * @param {{ storage: import('./storage.js').Storage, configResources: import('../adapters/config-resources.js').ConfigResources }} deps
+ * @param {{ storage: import('../adapters/storage.js').Storage, configResources: import('../adapters/config-resources.js').ConfigResources }} deps
  * @returns {ConfigService}
  */
 export function createConfigService(deps = {}) {
@@ -40,14 +38,16 @@ export function createConfigService(deps = {}) {
   if (!storage) throw new Error('createConfigService requires storage');
   if (!configResources) throw new Error('createConfigService requires configResources');
 
+  // Language and Prompt concerns are delegated to focused services (P1-3 decomposition).
+  const languageService = createLanguageService({
+    storage,
+    loadLanguages: configResources.loadLanguages,
+  });
+  const promptService = createPromptService({ storage, configResources });
+
   /** @type {any} */
   let state = {
     CONFIG: { ...DEFAULT_CONFIG },
-    PROMPTS: {},
-    DEFAULT_PROMPTS: {},
-    LANG: {},
-    CUSTOM_LANGS: {},
-    currentLang: 'English',
   };
 
   // ────────────────────────────────────────────────────────────
@@ -69,40 +69,6 @@ export function createConfigService(deps = {}) {
     storage.set(KEYS.CONFIG, state.CONFIG);
   }
 
-  async function loadDefaultPrompts() {
-    const raw = await configResources.loadSystemPrompts();
-    state.DEFAULT_PROMPTS = { ...raw };
-
-    // Cache defaults once (application concern, kept here)
-    if (!storage.get(KEYS.DEFAULT_PROMPTS)) {
-      storage.set(KEYS.DEFAULT_PROMPTS, raw);
-    }
-  }
-
-  async function loadLanguages() {
-    state.LANG = await configResources.loadLanguages();
-  }
-
-  function loadCustomLanguages() {
-    const stored = storage.get(KEYS.CUSTOM_LANGS);
-    state.CUSTOM_LANGS = stored || {};
-  }
-
-  function loadCustomPrompts() {
-    const stored = storage.get(KEYS.CUSTOM_PROMPTS);
-    return stored || {};
-  }
-
-  function rebuildPrompts() {
-    const custom = loadCustomPrompts();
-    state.PROMPTS = {};
-
-    for (const key in state.DEFAULT_PROMPTS) {
-      const template = custom[key] || state.DEFAULT_PROMPTS[key];
-      state.PROMPTS[key] = createPromptFunction(template);
-    }
-  }
-
   // ────────────────────────────────────────────────────────────
   // Public API
   // ────────────────────────────────────────────────────────────
@@ -113,24 +79,12 @@ export function createConfigService(deps = {}) {
    */
   async function initialize() {
     loadConfigFromStorage();
-    loadCustomLanguages();
 
+    // Delegate prompt and language initialization to focused services
     await Promise.all([
-      loadDefaultPrompts(),
-      loadLanguages(),
+      promptService.initialize(),
+      languageService.initialize(),
     ]);
-
-    rebuildPrompts();
-
-    // Restore last selected language if valid
-    const savedLangCode = storage.get(KEYS.SELECTED_LANG);
-    const allLangs = getAllLangs();
-    if (savedLangCode && allLangs[savedLangCode]) {
-      state.currentLang = allLangs[savedLangCode];
-    } else {
-      const firstCode = Object.keys(allLangs)[0] || 'en';
-      state.currentLang = allLangs[firstCode] || 'English';
-    }
   }
 
   function getConfig() {
@@ -142,84 +96,71 @@ export function createConfigService(deps = {}) {
     saveConfigToStorage();
   }
 
-  function getPrompt(promptType, lang = state.currentLang) {
-    const fn = state.PROMPTS[promptType];
-    return fn ? fn(lang) : '';
+  function getPrompt(promptType, lang) {
+    return promptService.getPrompt(promptType, lang || languageService.getCurrent());
   }
 
+  // Language methods are now delegated to the focused LanguageService
   function getAllLangs() {
-    return { ...state.LANG, ...state.CUSTOM_LANGS };
+    return languageService.getAll();
   }
 
   function getCurrentLanguage() {
-    return state.currentLang;
+    return languageService.getCurrent();
   }
 
   function setCurrentLanguage(langName) {
-    state.currentLang = langName;
+    languageService.setCurrent(langName);
   }
 
   function saveSelectedLanguage(code) {
-    storage.set(KEYS.SELECTED_LANG, code);
+    languageService.saveSelected(code);
   }
 
-  // Custom languages
   function addCustomLang(code, name) {
-    state.CUSTOM_LANGS[code.toLowerCase()] = name;
-    storage.set(KEYS.CUSTOM_LANGS, state.CUSTOM_LANGS);
+    languageService.addCustom(code, name);
   }
 
   function removeCustomLang(code) {
-    delete state.CUSTOM_LANGS[code.toLowerCase()];
-    storage.set(KEYS.CUSTOM_LANGS, state.CUSTOM_LANGS);
+    languageService.removeCustom(code);
   }
 
-  // Custom prompts
+  // Prompt methods delegated to focused PromptService
   function saveCustomPrompt(key, template) {
-    const custom = loadCustomPrompts();
-    custom[key] = template;
-    storage.set(KEYS.CUSTOM_PROMPTS, custom);
-    rebuildPrompts(); // refresh prompt functions
+    promptService.saveCustomPrompt(key, template);
   }
 
   function removeCustomPrompt(key) {
-    const custom = loadCustomPrompts();
-    delete custom[key];
-    storage.set(KEYS.CUSTOM_PROMPTS, custom);
-    rebuildPrompts();
+    promptService.removeCustomPrompt(key);
   }
 
   function isPromptCustomized(key) {
-    const custom = loadCustomPrompts();
-    return Object.prototype.hasOwnProperty.call(custom, key);
+    return promptService.isPromptCustomized(key);
   }
 
   function getDefaultPrompts() {
-    return { ...state.DEFAULT_PROMPTS };
+    return promptService.getDefaultPrompts();
   }
 
   function getPromptKeys() {
-    return Object.keys(state.DEFAULT_PROMPTS);
+    return promptService.getPromptKeys();
   }
 
   // Full reset (used by "Reset All")
   function resetAllToDefaults() {
     storage.clearAll();
-    state.CUSTOM_LANGS = {};
-    state.CUSTOM_PROMPTS = {}; // will be rebuilt
+    languageService.reset();
+    promptService.reset();
     loadConfigFromStorage(true);
-    rebuildPrompts();
   }
 
   // Expose a few more helpers that the new ConfigView needs
   function getCustomPrompts() {
-    const stored = storage.get(KEYS.CUSTOM_PROMPTS);
-    return stored || {};
+    return promptService.getCustomPrompts();
   }
 
   function getCustomLangs() {
-    const stored = storage.get(KEYS.CUSTOM_LANGS);
-    return stored || {};
+    return languageService.getCustom();
   }
 
   return {

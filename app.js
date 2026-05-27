@@ -22,12 +22,13 @@
  *   - App.processPendingContextMessage(message)
  */
 
-import { createStorage } from './services/storage.js';
+import { createStorage } from './adapters/storage.js';
 import { createThemeService } from './services/theme-service.js';
 import { createConfigService } from './services/config-service.js';
 import { createLLMAdapter } from './adapters/llm-adapter.js';
 import { createContentExtractor } from './adapters/content-extractor.js';
 import { createConfigResources } from './adapters/config-resources.js';
+import { createActiveTabProvider } from './adapters/active-tab.js';
 import { createAnalysisService } from './services/analysis-service.js';
 import { createOutputView } from './ui/output-view.js';
 import { createConfigView } from './ui/config-view.js';
@@ -110,14 +111,15 @@ export const App = {
     this.llmAdapter = createLLMAdapter();
     this.contentExtractor = createContentExtractor();
 
+    // Active tab capability is provided by a dedicated adapter so the
+    // Composition Root stays free of direct Chrome API calls.
+    const activeTabProvider = createActiveTabProvider();
+
     this.analysisService = createAnalysisService({
       llmAdapter: this.llmAdapter,
       contentExtractor: this.contentExtractor,
       configService: this.configService,
-      getActiveTabId: async () => {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        return tab?.id ?? null;
-      },
+      getActiveTabId: activeTabProvider.getActiveTabId,
     });
   },
 

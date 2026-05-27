@@ -1,7 +1,11 @@
 /**
- * Storage Service.
- * Single source of truth for all extension persistence (localStorage).
- * All other code should go through this service.
+ * Storage Adapter.
+ *
+ * Centralized wrapper around localStorage for all extension persistence.
+ * This is the single source of truth for reading/writing persistent data.
+ *
+ * Lives in adapters/ because it is the boundary to browser storage (outside-world I/O),
+ * consistent with the layered architecture (AGENTS.md §2.4).
  */
 
 const STORAGE_KEYS = {
@@ -23,7 +27,7 @@ const STORAGE_KEYS = {
  */
 
 /**
- * Creates a storage service instance.
+ * Creates a storage adapter instance.
  * @returns {Storage & { keys: typeof STORAGE_KEYS }}
  */
 export function createStorage() {

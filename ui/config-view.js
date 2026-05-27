@@ -11,6 +11,7 @@ import { createPromptEditorView } from './prompt-editor-view.js';
 import { createLanguageManagerView } from './language-manager-view.js';
 import { createResetView } from './reset-view.js';
 import { createTemperatureControlsView } from './temperature-controls-view.js';
+import { createMainConfigInputsView } from './main-config-inputs-view.js';
 
 export function createConfigView(deps = {}) {
   const {
@@ -20,13 +21,9 @@ export function createConfigView(deps = {}) {
     onRefreshModels = () => {},
   } = deps;
 
-  // Cache DOM elements
-  const elements = {
-    llmSelect: document.getElementById('llmSelect'),
-    promptSelect: document.getElementById('promptSelect'),
-    langSelect: document.getElementById('langSelect'),
-    refreshModelsBtn: document.getElementById('refreshModelsBtn'),
-  };
+  // Note: Main select elements (llmSelect, promptSelect, langSelect, refreshModelsBtn)
+  // are now owned by mainConfigInputsView.
+
 
   // Create focused sub-view for the prompt editor section
   const promptEditor = createPromptEditorView({ configService });
@@ -35,7 +32,7 @@ export function createConfigView(deps = {}) {
   const languageManager = createLanguageManagerView({
     configService,
     onLanguagesChanged: () => {
-      populateLanguageSelect(); // refresh the main language dropdown when languages change
+      mainInputs.populateLanguageSelect?.(); // refresh the main language dropdown when languages change
     },
   });
 
@@ -46,12 +43,20 @@ export function createConfigView(deps = {}) {
       temperatureControls.refresh();
       promptEditor.loadPrompt('summarize');
       languageManager.refresh();
-      populateLanguageSelect();
+      mainInputs.populateLanguageSelect?.();
     },
   });
 
   // Create focused sub-view for temperature and general config inputs
   const temperatureControls = createTemperatureControlsView({ configService });
+
+  // Create focused sub-view for the three main selects (model, task, language) + refresh button
+  const mainInputs = createMainConfigInputsView({
+    configService,
+    onModelChange,
+    onLanguageChange,
+    onRefreshModels,
+  });
 
   // ────────────────────────────────────────────────────────────
   // Private methods
@@ -73,28 +78,11 @@ export function createConfigView(deps = {}) {
     // Delegate temperature and config inputs to their own focused view
     temperatureControls.wire();
 
-    // Language selector
-    elements.langSelect?.addEventListener('change', () => {
-      const code = elements.langSelect.value;
-      const allLangs = configService?.getAllLangs?.() || {};
-      const langName = allLangs[code] || 'English';
-      configService?.setCurrentLanguage?.(langName);
-      configService?.saveSelectedLanguage?.(code);
-      onLanguageChange(langName);
-    });
+    // Delegate the three main selects + refresh button to their focused view
+    mainInputs.wire();
 
-    // Model selector
-    elements.llmSelect?.addEventListener('change', () => {
-      onModelChange(elements.llmSelect.value);
-    });
-
-    // (Language management has been moved to language-manager-view.js)
-    // (Reset logic has been moved to reset-view.js)
-
-    // Refresh models button - fully owned here (callback lets App orchestrate the actual load)
-    elements.refreshModelsBtn?.addEventListener('click', () => {
-      onRefreshModels();
-    });
+    // (Language selector, model selector, and refresh button logic
+    //  have been moved to main-config-inputs-view.js)
   }
 
   // ────────────────────────────────────────────────────────────
@@ -106,72 +94,22 @@ export function createConfigView(deps = {}) {
       temperatureControls.refresh();
       promptEditor.loadPrompt('summarize');
       languageManager.refresh();
-      populateLanguageSelect();
+      mainInputs.refresh(); // includes populateLanguageSelect
     }
   }
 
-  /**
-   * Populates the main language dropdown (#langSelect) with all available languages
-   * (default + custom). This was missing after the refactor.
-   */
-  function populateLanguageSelect() {
-    const langSelectEl = elements.langSelect;
-    if (!langSelectEl || !configService) return;
-
-    const allLangs = configService.getAllLangs?.() || {};
-    const currentCode = Object.keys(allLangs).find(code =>
-      allLangs[code] === configService.getCurrentLanguage?.()
-    ) || 'en';
-
-    langSelectEl.innerHTML = '';
-
-    Object.entries(allLangs).forEach(([code, name]) => {
-      const opt = document.createElement('option');
-      opt.value = code;
-      opt.textContent = name;
-      langSelectEl.appendChild(opt);
-    });
-
-    langSelectEl.value = currentCode;
-  }
+  // populateLanguageSelect has been moved to main-config-inputs-view.js
+  // (exposed via mainInputs.populateLanguageSelect if needed externally)
 
   function populateTaskSelects() {
-    const keys = configService?.getPromptKeys?.() || [];
-
-    // Output tab prompt select
-    if (elements.promptSelect) {
-      elements.promptSelect.innerHTML = '';
-      keys.forEach(key => {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        elements.promptSelect.appendChild(opt);
-      });
-    }
-
+    mainInputs.populateTaskSelects();
     // Delegate editor select population to sub-view
+    const keys = configService?.getPromptKeys?.() || [];
     promptEditor.populate(keys);
   }
 
   function populateModelSelect(models) {
-    if (!elements.llmSelect) return;
-
-    elements.llmSelect.innerHTML = '';
-    const llmModels = models.filter(m => m.type === 'llm' || m.type === 'vlm');
-
-    if (llmModels.length > 0) {
-      llmModels.forEach(model => {
-        const opt = document.createElement('option');
-        opt.value = model.id;
-        opt.textContent = `${model.id} (${model.state})`;
-        elements.llmSelect.appendChild(opt);
-      });
-    } else {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = 'No LLM models found';
-      elements.llmSelect.appendChild(opt);
-    }
+    mainInputs.populateModelSelect(models);
   }
 
   function setCurrentLanguage(language) {
@@ -179,19 +117,18 @@ export function createConfigView(deps = {}) {
   }
 
   function getCurrentModel() {
-    return elements.llmSelect?.value || '';
+    return mainInputs.getCurrentModel();
   }
 
   function getCurrentPromptType() {
-    return elements.promptSelect?.value || 'summarize';
+    return mainInputs.getCurrentPromptType();
   }
 
   /**
    * Disables or enables the model and prompt selects (used during processing).
    */
   function setSelectionInputsDisabled(disabled) {
-    if (elements.llmSelect) elements.llmSelect.disabled = disabled;
-    if (elements.promptSelect) elements.promptSelect.disabled = disabled;
+    mainInputs.setSelectionInputsDisabled(disabled);
   }
 
   /**
@@ -199,18 +136,7 @@ export function createConfigView(deps = {}) {
    * If the model is found in the dropdown, it selects it and notifies via onModelChange.
    */
   function restoreLastSelectedModel(lastModelId) {
-    if (!lastModelId || !elements.llmSelect) return;
-
-    const options = Array.from(elements.llmSelect.options);
-    const found = options.some(opt => opt.value === lastModelId);
-
-    if (found) {
-      elements.llmSelect.value = lastModelId;
-      // Reuse the existing change handler logic
-      if (typeof onModelChange === 'function') {
-        onModelChange(lastModelId);
-      }
-    }
+    mainInputs.restoreLastSelectedModel(lastModelId);
   }
 
   // Initialize wiring
@@ -226,8 +152,11 @@ export function createConfigView(deps = {}) {
     getCurrentModel,
     getCurrentPromptType,
 
-    // Exposed so App or reset flows can force a refresh of the language dropdown
-    populateLanguageSelect,
+    // Language refresh is now handled via mainInputs
+    // (kept for backward compat during transition if anything external calls it)
+    populateLanguageSelect() {
+      mainInputs.populateLanguageSelect?.();
+    },
 
     // Model restoration (used after populateModelSelect)
     restoreLastSelectedModel,
@@ -238,9 +167,7 @@ export function createConfigView(deps = {}) {
     // Used by App for the rare catastrophic model load failure (LM Studio down etc.)
     // Keeps the last direct llmSelect write out of the composition root.
     setModelSelectError(message) {
-      if (elements.llmSelect) {
-        elements.llmSelect.innerHTML = `<option value="">${message || 'No models available'}</option>`;
-      }
+      mainInputs.setModelSelectError(message);
     },
   };
 }

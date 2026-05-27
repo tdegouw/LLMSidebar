@@ -15,7 +15,7 @@ export function createAnalysisService(deps = {}) {
     llmAdapter,
     contentExtractor,
     configService,
-    getActiveTabId,           // optional: () => Promise<number>
+    getActiveTabId,           // optional: () => Promise<number | null>
   } = deps;
 
   let abortController = null;

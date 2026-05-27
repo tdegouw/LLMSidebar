@@ -121,14 +121,23 @@ A good change:
 
 These are the areas that currently stand out as the biggest opportunities for improvement:
 
-- `ui/config-view.js` (still ~246 lines) — The temperature + live config input logic remains the largest remaining chunk (coordinator of 4 focused sub-views).
-- `app.js` (now ~208 lines after AnalysisController extraction) — Successfully lightened; now a clean thin Composition Root.
-- Callback coupling between `config-view.js` and its sub-views.
-- Temperature resolution logic is still somewhat fragmented.
-- Complete absence of automated tests.
-- Some minor duplication and legacy patterns may still exist in `output-view.js`.
+**Major progress achieved (P0 + P1 work completed):**
+- `services/config-service.js` — Successfully decomposed. Language and prompt concerns extracted into focused `language-service.js` and `prompt-service.js`. Now a thin runtime config coordinator (~184 lines).
+- `ui/config-view.js` — Successfully lightened via extraction of `main-config-inputs-view.js`. Now a much lighter coordinator of 5 focused sub-views (~173 lines).
+- Storage layer aligned: `storage.js` moved to `adapters/`.
+- Last direct Chrome API call removed from Composition Root (`app.js`) into `adapters/active-tab.js`.
+- ThemeService is now purely persistence (no DOM).
 
-When working on the codebase, actively look for opportunities to improve these areas.
+**Remaining opportunities:**
+- `ui/output-view.js` (~211 lines) — Still the largest UI file. Minor duplication in clear/reset logic remains.
+- `app.js` (~214 lines) — Still slightly above the ideal thin root target. Module-level `export const App` singleton pattern is an outlier.
+- Callback coupling between `config-view.js` (now lighter) and its sub-views — reduced but not eliminated.
+- Temperature resolution logic is still somewhat fragmented (defaults duplicated between `core/temperature.js` and config).
+- Complete absence of automated tests.
+- Module-top-level creation of messaging adapters in entry points (`background.js`, `sidepanel-init.js`).
+- `window.__llmSidebar...` global guard flag in messaging adapter.
+
+When working on the codebase, actively look for opportunities to improve these areas while continuing to follow the small-files and ownership principles.
 
 ## 7. Documentation Responsibility
 
