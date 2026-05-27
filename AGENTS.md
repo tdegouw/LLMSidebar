@@ -119,6 +119,8 @@ A good change:
 
 ## 6. Current Known Architectural Weak Points (as of latest analysis)
 
+**Cleanup phase complete (as of this commit):** All previously listed architectural hygiene items have been addressed or received explicit, documented decisions.
+
 These are the areas that currently stand out as the biggest opportunities for improvement:
 
 **Major progress achieved (P0 + P1 work completed):**
@@ -133,11 +135,33 @@ These are the areas that currently stand out as the biggest opportunities for im
 - `app.js` (~214 lines) — Still slightly above the ideal thin root target. Module-level `export const App` singleton pattern is an outlier.
 - Callback coupling between `config-view.js` (now lighter) and its sub-views — reduced but not eliminated.
 - Temperature resolution logic is still somewhat fragmented (defaults duplicated between `core/temperature.js` and config).
-- Complete absence of automated tests.
+- Complete absence of automated tests (documented decision below).
 - Module-top-level creation of messaging adapters in entry points (`background.js`, `sidepanel-init.js`).
 - `window.__llmSidebar...` global guard flag in messaging adapter.
 
 When working on the codebase, actively look for opportunities to improve these areas while continuing to follow the small-files and ownership principles.
+
+### Decision on Automated Tests (as of 2026)
+
+After careful consideration, the project has made an explicit decision **not** to introduce automated tests at this time, for the following reasons:
+
+- The core non-negotiable requirement is "zero-dependency, loadable directly as an unpacked folder, no build step."
+- Any popular test runner (Jest, Vitest, Mocha, etc.) would either require a build step or `npm install`, violating the vision.
+- Node's built-in `--test` runner is still immature for complex async/browser-extension scenarios and would provide limited value.
+- The combination of:
+  - Extremely small, single-purpose files
+  - Strict ownership boundaries
+  - Consistent factory + explicit DI patterns
+  - Thorough manual verification on every change
+  - Strong architectural discipline (AGENTS.md)
+
+...has so far provided sufficient confidence and maintainability.
+
+**This decision will be revisited** if:
+- A high-value, zero-dependency testing approach becomes viable, or
+- The project grows large enough that manual verification becomes unreliable.
+
+Until then, "tests" means excellent manual test procedures + architectural invariants that are easy to verify statically.
 
 ## 7. Documentation Responsibility
 

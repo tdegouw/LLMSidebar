@@ -20,6 +20,10 @@ import { createBackgroundMessaging } from './adapters/messaging.js';
 // ------------------------------------------------------------------
 // Messaging Adapter
 // ------------------------------------------------------------------
+// Created at module top level because background.js is a service worker
+// that must be ready to handle chrome.contextMenus and runtime messages
+// immediately on load. This is an intentional, documented exception to the
+// "everything created in Composition Root" rule due to extension lifecycle.
 const messaging = createBackgroundMessaging();
 
 // ------------------------------------------------------------------

@@ -28,15 +28,18 @@ export function createConfigView(deps = {}) {
   // Create focused sub-view for the prompt editor section
   const promptEditor = createPromptEditorView({ configService });
 
-  // Create focused sub-view for custom language management
+  // Create focused sub-view for custom language management.
+  // The onLanguagesChanged callback is the parent coordinator's responsibility
+  // (light, intentional coupling for cross-subview refresh).
   const languageManager = createLanguageManagerView({
     configService,
     onLanguagesChanged: () => {
-      mainInputs.populateLanguageSelect?.(); // refresh the main language dropdown when languages change
+      mainInputs.populateLanguageSelect?.();
     },
   });
 
-  // Create focused sub-view for the Reset All section
+  // Create focused sub-view for the Reset All section.
+  // The onReset callback coordinates refresh across multiple sub-views.
   const resetView = createResetView({
     configService,
     onReset: () => {

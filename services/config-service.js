@@ -10,6 +10,7 @@
 
 import { createLanguageService } from './language-service.js';
 import { createPromptService } from './prompt-service.js';
+import { DEFAULT_TEMPERATURE_CONFIG } from '../core/temperature.js';
 
 /** @type {import('../adapters/storage.js').Storage['keys']} */
 const KEYS = {
@@ -21,9 +22,7 @@ const KEYS = {
 /** Default runtime configuration */
 const DEFAULT_CONFIG = {
   maxLen: 8000,
-  temperature: 0.6,
-  temperatureThreshold: 1000,
-  temperatureHigh: 0.8,
+  ...DEFAULT_TEMPERATURE_CONFIG,
 };
 
 /**

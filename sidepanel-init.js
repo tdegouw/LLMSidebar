@@ -8,7 +8,9 @@
 import { App } from './app.js';
 import { createSidepanelMessaging } from './adapters/messaging.js';
 
-// Create the messaging adapter early so we can capture messages before App.init
+// Create the messaging adapter at module top level so it can capture
+// context menu messages that may arrive before the DOM is ready and
+// before App.init() has run. This is a justified timing exception.
 const messaging = createSidepanelMessaging();
 
 // Capture context menu messages as early as possible

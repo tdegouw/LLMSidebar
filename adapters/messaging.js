@@ -98,21 +98,23 @@ export function createSidepanelMessaging() {
   /**
    * Register a handler for a specific message type.
    */
+  let messageListenerInstalled = false;
+
   function on(type, handler) {
     if (!listeners.has(type)) {
       listeners.set(type, new Set());
     }
     listeners.get(type).add(handler);
 
-    // Ensure we have a single global listener
-    if (!window.__llmSidebarMessagingListenerInstalled) {
+    // Install the shared listener only once (module-scoped, no globals)
+    if (!messageListenerInstalled) {
       chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const handlers = listeners.get(message?.type);
         if (handlers) {
           handlers.forEach((h) => h(message, sender, sendResponse));
         }
       });
-      window.__llmSidebarMessagingListenerInstalled = true;
+      messageListenerInstalled = true;
     }
   }
 

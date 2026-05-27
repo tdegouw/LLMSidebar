@@ -39,6 +39,16 @@ import { createAnalysisController } from './ui/analysis-controller.js';
 import { createSidepanelMessaging } from './adapters/messaging.js';
 import { markdownToHtml } from './core/markdown.js';
 
+/**
+ * App – The Composition Root (documented singleton exception)
+ *
+ * This is the single place where all services, adapters, and views are
+ * created and wired together.
+ *
+ * Size note: Staying under ~220 lines is the target. The current size is
+ * acceptable as long as it remains pure creation + wiring with no behavior.
+ * Further lightening can be done if private methods start accumulating logic.
+ */
 export const App = {
   // === Injected Dependencies (populated in init) ===
   storage: null,

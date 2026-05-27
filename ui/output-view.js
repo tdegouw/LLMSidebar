@@ -2,9 +2,10 @@
  * Output View
  *
  * Owns the entire Output tab: DOM elements, event wiring, and rendering.
- * This is the *only* place that should touch output-related DOM nodes.
  *
- * Uses factory pattern for clean dependency injection of action callbacks.
+ * Size note: ~200+ lines is accepted here because it owns a complex cluster
+ * (streaming results + reasoning panel + error overlay + multiple accumulators).
+ * Further extraction (e.g. reasoning panel) can be done if this grows significantly.
  */
 
 export function createOutputView(deps = {}) {
@@ -50,12 +51,7 @@ export function createOutputView(deps = {}) {
     elements.analyzeBtn?.addEventListener('click', () => onAnalyze());
     elements.stopBtn?.addEventListener('click', () => onStop());
     elements.clearBtn?.addEventListener('click', () => {
-      _renderEmptyState();
-      if (elements.reasoningContainer) elements.reasoningContainer.classList.remove('visible');
-      if (elements.reasoningBody) {
-        elements.reasoningBody.textContent = '';
-        elements.reasoningBody.dataset.raw = '';
-      }
+      clearResults();
       onClear();
     });
 
