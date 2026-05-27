@@ -14,6 +14,13 @@
 export function createBackgroundMessaging() {
   let pendingMessage = null;
 
+  function _createContextMessageId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return `ctx_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+
   /**
    * Called when the user triggers "Send to LLM" via context menu.
    */
@@ -24,6 +31,35 @@ export function createBackgroundMessaging() {
         selectionText: info.selectionText,
         pageUrl: info.pageUrl,
         tabId: tab.id,
+        messageId: _createContextMessageId(),
+      },
+    };
+
+    pendingMessage = message;
+
+    try {
+      await chrome.sidePanel.open({ tabId: tab.id });
+    } catch (err) {
+      console.error('[Messaging] Failed to open side panel', err);
+      pendingMessage = null;
+      return;
+    }
+
+    _send(message);
+  }
+
+  /**
+   * Called when the user triggers image AI analysis via context menu on an image.
+   */
+  async function handleImageAnalysisMessage(info, tab) {
+    const message = {
+      type: 'LLMsidebarMessage',
+      data: {
+        imageSrcUrl: info.srcUrl,
+        pageUrl: info.pageUrl,
+        tabId: tab.id,
+        mediaType: info.mediaType,
+        messageId: _createContextMessageId(),
       },
     };
 
@@ -68,6 +104,7 @@ export function createBackgroundMessaging() {
 
   return {
     handleContextMenuMessage,
+    handleImageAnalysisMessage,
     onSidepanelReady,
     on,
   };

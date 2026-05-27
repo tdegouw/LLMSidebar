@@ -30,6 +30,7 @@ export function createAnalysisController(deps = {}) {
     outputView,
     configView,
     tabController,
+    imageCapture,
   } = deps;
 
   if (!analysisService) {
@@ -76,25 +77,36 @@ export function createAnalysisController(deps = {}) {
    * The error handling here is intentionally minimal (service already calls onError;
    * we only log non-abort errors for diagnostics).
    */
-  async function _runAnalysis({ content = null, model, promptType = 'summarize' } = {}) {
+  async function _runAnalysis({ content = null, image = null, model, promptType = 'summarize' } = {}) {
     if (!model) {
       outputView?.showError('No model selected.');
       return;
     }
+
+    let hasReceivedContent = false;
 
     try {
       await analysisService.run({
         model,
         promptType,
         content,
+        image,
         onContent: (chunk) => {
+          hasReceivedContent = true;
           outputView?.appendContent?.(chunk);
         },
         onReasoning: (chunk) => {
+          hasReceivedContent = true;
           outputView?.renderReasoning?.(chunk);
         },
         onError: (msg) => {
-          outputView?.showError?.(msg);
+          // Only show the big error overlay if we haven't received any content yet.
+          // If content arrived, the error happened mid-stream; don't yank the UI out of processing.
+          if (!hasReceivedContent) {
+            outputView?.showError?.(msg);
+          } else {
+            console.warn('[AnalysisController] Error after content started arriving:', msg);
+          }
         },
         onProcessingChange: (isProcessing) => {
           outputView?.setProcessing?.(isProcessing);
@@ -129,6 +141,32 @@ export function createAnalysisController(deps = {}) {
     });
   }
 
+  // Dedup for context menu payloads. Background may deliver the same
+  // logical request twice (direct send + READY replay, or races during panel
+  // bootstrap). Each user gesture gets a unique messageId; only duplicates
+  // of the *same* id are suppressed. Legitimate repeated user actions use
+  // different ids and are allowed.
+  const seenContextMessageIds = new Map(); // messageId -> timestamp
+  const MESSAGE_DEDUP_WINDOW_MS = 10000;
+
+  function _isDuplicateContextMessage(messageId) {
+    if (!messageId) return false;
+    const now = Date.now();
+
+    // Prune expired entries (keeps the map tiny)
+    for (const [id, ts] of seenContextMessageIds) {
+      if (now - ts > MESSAGE_DEDUP_WINDOW_MS) {
+        seenContextMessageIds.delete(id);
+      }
+    }
+
+    if (seenContextMessageIds.has(messageId)) {
+      return true;
+    }
+    seenContextMessageIds.set(messageId, now);
+    return false;
+  }
+
   /**
    * Handler for messages coming from the background script
    * (right-click context menu → "Send to LLM").
@@ -137,9 +175,20 @@ export function createAnalysisController(deps = {}) {
    * provided selectionText directly instead of extracting from the page.
    */
   function handleContextMenuMessage(message) {
-    console.log('[AnalysisController] Handling context menu message', message);
+    const data = message?.data || {};
 
-    const selectionText = message?.data?.selectionText || '';
+    if (data.messageId && _isDuplicateContextMessage(data.messageId)) {
+      return;
+    }
+
+    // Image / video AI analysis path
+    if (data.imageSrcUrl) {
+      handleImageAnalysisMessage(message);
+      return;
+    }
+
+    // Existing text selection path
+    const selectionText = data.selectionText || '';
     if (!selectionText.trim()) {
       outputView?.showError('No text was selected.');
       return;
@@ -155,6 +204,68 @@ export function createAnalysisController(deps = {}) {
       model: selection.model,
       promptType: selection.promptType,
     });
+  }
+
+  /**
+   * Handles the "Check if this image is AI-generated" flow (right-click on images/videos).
+   */
+  async function handleImageAnalysisMessage(message) {
+    const data = message?.data || {};
+    const srcUrl = data.imageSrcUrl;
+    const tabId = data.tabId;
+
+    if (!srcUrl || !tabId) {
+      outputView?.showError('The selected image could not be accessed.');
+      return;
+    }
+
+    // Only vision models (type 'vlm') can analyze images
+    const modelType = configView?.getCurrentModelType?.();
+    if (modelType !== 'vlm') {
+      outputView?.showError('Please select a vision model (👁️ Vision) to analyze images.');
+      return;
+    }
+
+    const selection = _getCurrentSelectionOrError();
+    if (!selection) return;
+
+    _prepareForNewAnalysis({ switchTab: true });
+
+    try {
+      // Capture the image as base64
+      const imageDataUrl = await imageCapture?.captureImage?.(tabId, srcUrl);
+
+      if (!imageDataUrl) {
+        outputView?.showError('Failed to capture the image.');
+        return;
+      }
+
+      // Use the special AI image detection prompt
+      // The service will fully manage the processing button state (Stop / Process Page + dot)
+      _runAnalysis({
+        content: '', // not used for pure image analysis
+        image: imageDataUrl,
+        model: selection.model,
+        promptType: 'detect_ai_image',
+      });
+    } catch (err) {
+      console.error('[AnalysisController] Image capture failed', err);
+
+      const raw = (err && err.message) || String(err);
+      let userMsg = 'Could not capture the image for analysis.';
+
+      if (raw.includes('CORS') || raw.includes('cross-origin') || raw.includes('block')) {
+        userMsg = 'Could not load the image (the site may prevent access to it).';
+      } else if (raw.includes('timed out') || raw.includes('timeout')) {
+        userMsg = 'Image capture timed out.';
+      } else if (raw.includes('not found') || raw.includes('element')) {
+        userMsg = 'Could not locate the image on the page.';
+      } else if (raw.includes('zero dimensions')) {
+        userMsg = 'Could not read the image (it may still be loading).';
+      }
+
+      outputView?.showError(userMsg);
+    }
   }
 
   /**

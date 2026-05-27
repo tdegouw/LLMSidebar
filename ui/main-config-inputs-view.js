@@ -33,6 +33,9 @@ export function createMainConfigInputsView(deps = {}) {
     refreshModelsBtn: document.getElementById('refreshModelsBtn'),
   };
 
+  /** @type {Array} */
+  let models = [];
+
   function _wireEvents() {
     elements.langSelect?.addEventListener('change', () => {
       const code = elements.langSelect.value;
@@ -87,7 +90,9 @@ export function createMainConfigInputsView(deps = {}) {
     }
   }
 
-  function populateModelSelect(models) {
+  function populateModelSelect(newModels) {
+    models = Array.isArray(newModels) ? newModels : [];
+
     if (!elements.llmSelect) return;
 
     elements.llmSelect.innerHTML = '';
@@ -97,7 +102,13 @@ export function createMainConfigInputsView(deps = {}) {
       llmModels.forEach(model => {
         const opt = document.createElement('option');
         opt.value = model.id;
-        opt.textContent = `${model.id} (${model.state})`;
+
+        let label = `${model.id} (${model.state})`;
+        if (model.type === 'vlm') {
+          label += ' 👁️ Vision';   // Clear indicator that this model supports images
+        }
+
+        opt.textContent = label;
         elements.llmSelect.appendChild(opt);
       });
     } else {
@@ -106,6 +117,13 @@ export function createMainConfigInputsView(deps = {}) {
       opt.textContent = 'No LLM models found';
       elements.llmSelect.appendChild(opt);
     }
+  }
+
+  function getCurrentModelType() {
+    const currentId = getCurrentModel();
+    if (!currentId) return null;
+    const model = models.find(m => m.id === currentId);
+    return model?.type || null;
   }
 
   function setSelectionInputsDisabled(disabled) {
@@ -161,5 +179,6 @@ export function createMainConfigInputsView(deps = {}) {
     setModelSelectError,
     getCurrentModel,
     getCurrentPromptType,
+    getCurrentModelType,
   };
 }

@@ -172,5 +172,10 @@ export function createConfigView(deps = {}) {
     setModelSelectError(message) {
       mainInputs.setModelSelectError(message);
     },
+
+    // Used to check capabilities (e.g. vision support for image analysis)
+    getCurrentModelType() {
+      return mainInputs.getCurrentModelType?.();
+    },
   };
 }

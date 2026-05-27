@@ -6,8 +6,12 @@
 import { resolveTemperature } from '../core/temperature.js';
 
 /**
+ * @typedef {string | Array<{type: string, text?: string, image_url?: {url: string}}>} MessageContent
+ */
+
+/**
  * @typedef {Object} LLMAdapter
- * @property {(model: string, promptText: string, content: string, onChunk: (chunk: string) => void, onReasoning?: (chunk: string) => void, signal?: AbortSignal, config?: object) => Promise<string>} streamChat
+ * @property {(model: string, promptText: string, content: MessageContent, onChunk: (chunk: string) => void, onReasoning?: (chunk: string) => void, signal?: AbortSignal, config?: object) => Promise<string>} streamChat
  * @property {() => Promise<Array>} loadModels
  */
 
@@ -26,7 +30,9 @@ export function createLLMAdapter(options = {}) {
    * Supports both regular content and reasoning_content (for reasoning models).
    */
   async function streamChat(model, promptText, content, onChunk, onReasoning, signal, config = null) {
-    const temperature = resolveTemperature(content.length, config);
+    // For vision content (array), use a reasonable token estimate for temperature
+    const contentForTemp = Array.isArray(content) ? ' '.repeat(2000) : content;
+    const temperature = resolveTemperature(contentForTemp.length, config);
 
     const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',

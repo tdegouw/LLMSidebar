@@ -49,6 +49,7 @@ export function createAnalysisService(deps = {}) {
       model,
       promptType = 'summarize',
       content: contentOverride,
+      image: imageDataUrl,           // new for vision features
       tabId: explicitTabId,
       onContent,
       onReasoning,
@@ -68,7 +69,7 @@ export function createAnalysisService(deps = {}) {
       // 1. Resolve content
       let content = contentOverride;
 
-      if (!content) {
+      if (!content && !imageDataUrl) {
         const tabId = explicitTabId || (getActiveTabId ? await getActiveTabId() : null);
 
         if (tabId && contentExtractor) {
@@ -78,7 +79,8 @@ export function createAnalysisService(deps = {}) {
         }
       }
 
-      if (!content || typeof content !== 'string' || content.trim() === '') {
+      // Only require text content if we're not doing a pure image analysis
+      if (!imageDataUrl && (!content || typeof content !== 'string' || content.trim() === '')) {
         throw new Error('No text found to analyze.');
       }
 
@@ -99,10 +101,21 @@ export function createAnalysisService(deps = {}) {
       const cfg = configService ? configService.getConfig() : null;
 
       // 4. Stream from LLM
+      // Build user content: support plain text or vision (text + image)
+      let userContent;
+      if (imageDataUrl) {
+        userContent = [
+          { type: 'text', text: content || 'Analyze this image.' },
+          { type: 'image_url', image_url: { url: imageDataUrl } },
+        ];
+      } else {
+        userContent = content;
+      }
+
       const result = await llmAdapter.streamChat(
         model,
         promptText,
-        content,
+        userContent,
         onContent,
         onReasoning,
         signal,

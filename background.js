@@ -35,11 +35,17 @@ const CONTEXT_MENU_ID = 'LLMsidebar';
 // Extension Lifecycle
 // ------------------------------------------------------------------
 chrome.runtime.onInstalled.addListener(() => {
-  // Create the right-click context menu item
+  // Create the right-click context menu items
   chrome.contextMenus.create({
     id: CONTEXT_MENU_ID,
     title: 'Send to LLM',
     contexts: ['selection'],
+  });
+
+  chrome.contextMenus.create({
+    id: 'LLMsidebarImageAnalysis',
+    title: 'Check if this image is AI-generated',
+    contexts: ['image', 'video'],
   });
 
   // Make clicking the extension icon open the side panel
@@ -52,13 +58,13 @@ chrome.runtime.onInstalled.addListener(() => {
 // Context Menu Handling
 // ------------------------------------------------------------------
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId !== CONTEXT_MENU_ID) return;
-
-  // The messaging adapter handles:
-  // - Creating the LLMsidebarMessage
-  // - Opening the side panel
-  // - Queuing the message if the side panel isn't ready yet
-  messaging.handleContextMenuMessage(info, tab);
+  if (info.menuItemId === CONTEXT_MENU_ID) {
+    // Text selection path - existing behavior
+    messaging.handleContextMenuMessage(info, tab);
+  } else if (info.menuItemId === 'LLMsidebarImageAnalysis') {
+    // Image analysis path - new vision feature
+    messaging.handleImageAnalysisMessage(info, tab);
+  }
 });
 
 // ------------------------------------------------------------------

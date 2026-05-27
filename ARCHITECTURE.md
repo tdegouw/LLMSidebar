@@ -38,7 +38,8 @@ LLMSidebar/
 │   ├── messaging.js           # Sidepanel ↔ Background messaging abstraction
 │   ├── config-resources.js    # Loads the two static config JSONs (chrome.runtime.getURL + fetch)
 │   ├── active-tab.js          # Returns the ID of the currently active browser tab
-│   └── storage.js             # localStorage persistence adapter (browser I/O boundary)
+│   ├── storage.js             # localStorage persistence adapter (browser I/O boundary)
+│   └── image-capture.js       # Captures images from pages as base64 for vision models
 
 ├── services/                  # Business logic & state
 │   ├── analysis-service.js    # Orchestrates a full analysis run
@@ -138,9 +139,9 @@ The stylesheet is split for maintainability:
 
 ### Context Menu Flow ("Send to LLM")
 1. `background.js` receives `chrome.contextMenus.onClicked`
-2. Opens the side panel + sends `LLMsidebarMessage` via `chrome.runtime.sendMessage`
-3. `sidepanel-init.js` captures early messages if the app is not ready yet
-4. `app.js` receives the message and delegates to `AnalysisController.handleContextMenuMessage` (the flow logic no longer lives in the Composition Root)
+2. Opens the side panel + sends `LLMsidebarMessage` (with unique `messageId`) via `chrome.runtime.sendMessage`
+3. `sidepanel-init.js` captures early messages (temporary listener, removed after init) if the app is not ready yet
+4. `app.js` receives the message and delegates to `AnalysisController.handleContextMenuMessage` (the flow logic no longer lives in the Composition Root). A small identity+window guard inside the controller suppresses any duplicate deliveries of the same `messageId` (e.g. direct send + READY replay).
 5. `AnalysisService.run()` is started with the selected text
 6. Streaming chunks go to `OutputView.appendContent()`
 
@@ -166,6 +167,7 @@ The architecture is prepared for:
 - Input field filling (new analysis mode that writes back into the page)
 - Additional UI surfaces (history, multi-turn chat, settings page)
 - More themes (just extend `themes.css` + `ThemeService`/`ThemeController`)
+- Vision / multimodal inputs (new `image-capture` adapter + multimodal support in the LLM adapter)
 
 ## Current State (as of 2026)
 

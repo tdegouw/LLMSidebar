@@ -29,6 +29,7 @@ import { createLLMAdapter } from './adapters/llm-adapter.js';
 import { createContentExtractor } from './adapters/content-extractor.js';
 import { createConfigResources } from './adapters/config-resources.js';
 import { createActiveTabProvider } from './adapters/active-tab.js';
+import { createImageCapture } from './adapters/image-capture.js';
 import { createAnalysisService } from './services/analysis-service.js';
 import { createOutputView } from './ui/output-view.js';
 import { createConfigView } from './ui/config-view.js';
@@ -124,6 +125,7 @@ export const App = {
     // Active tab capability is provided by a dedicated adapter so the
     // Composition Root stays free of direct Chrome API calls.
     const activeTabProvider = createActiveTabProvider();
+    this.imageCapture = createImageCapture();
 
     this.analysisService = createAnalysisService({
       llmAdapter: this.llmAdapter,
@@ -168,6 +170,7 @@ export const App = {
       outputView: this.outputView,
       configView: this.configView,
       tabController: this.tabController,
+      imageCapture: this.imageCapture,
     });
   },
 

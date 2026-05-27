@@ -13,33 +13,33 @@ import { createSidepanelMessaging } from './adapters/messaging.js';
 // before App.init() has run. This is a justified timing exception.
 const messaging = createSidepanelMessaging();
 
-// Capture context menu messages as early as possible
+// Capture context menu messages as early as possible.
+// The handler is temporary and removed after App.init() to ensure
+// exactly one delivery path (prevents duplicate analysis runs).
 let pendingContextMenuMessage = null;
 
-messaging.on('LLMsidebarMessage', (message) => {
+function earlyContextMenuHandler(message) {
   console.log('[Bootstrap] Captured early LLMsidebarMessage', message);
   pendingContextMenuMessage = message;
+}
 
-  // If App is already initialized, process it immediately
-  if (App && typeof App.processPendingContextMessage === 'function') {
-    App.processPendingContextMessage(pendingContextMenuMessage);
-    pendingContextMenuMessage = null;
-  }
-});
+messaging.on('LLMsidebarMessage', earlyContextMenuHandler);
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await App.init();
 
-    // After init, process any message that arrived while loading
+    // After init, replay any message captured during bootstrap through
+    // the normal handler registered in _setupMessaging. Then remove the
+    // temporary early listener so future messages have only one path.
     if (pendingContextMenuMessage) {
-      if (typeof App.processPendingContextMessage === 'function') {
-        App.processPendingContextMessage(pendingContextMenuMessage);
-      }
+      messaging.processPendingMessage(pendingContextMenuMessage);
       pendingContextMenuMessage = null;
     }
+    messaging.off('LLMsidebarMessage', earlyContextMenuHandler);
 
-    // Now that App is ready, tell the background we're here
+    // Now that App is ready, tell the background we're here.
+    // Background may replay a queued context menu message on this READY.
     messaging.notifyReady();
   } catch (error) {
     console.error('[Sidepanel] Failed to initialize App:', error);
