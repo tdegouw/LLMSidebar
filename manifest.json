@@ -1,9 +1,9 @@
 {
   "name": "LLMSidebar",
   "description": "Simple sidebar to use Local LLM in the browser",
-  "version": "0.1",
+  "version": "0.2.0",
   "manifest_version": 3,
-  "permissions": ["scripting", "sidePanel", "contextMenus"],
+  "permissions": ["scripting", "sidePanel", "contextMenus", "activeTab"],
   "host_permissions": ["http://localhost:1234/*", "<all_urls>"],
   "action": {
       "default_title": "Open LLMSidebar"
@@ -21,12 +21,6 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },     
-  "web_accessible_resources": [
-    {
-      "resources": ["config/*"],
-      "matches": ["<all_urls>"]
-    }
-  ],
+  },
   "homepage_url": "https://github.com/tdegouw/LLMSidebar"
 }

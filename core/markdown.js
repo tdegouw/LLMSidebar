@@ -5,6 +5,81 @@
  */
 
 /**
+ * Escapes a value for safe use inside an HTML attribute (double-quoted).
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtmlAttribute(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Allowlist-checks a markdown link href.
+ * Permits http:, https:, and same-document #anchors only.
+ * Blocks javascript:, data:, vbscript:, protocol-relative URLs, and junk.
+ *
+ * @param {string} rawHref
+ * @returns {string|null} Safe href, or null if disallowed
+ */
+function sanitizeHref(rawHref) {
+  if (!rawHref || typeof rawHref !== 'string') return null;
+
+  const href = rawHref.trim();
+  if (!href) return null;
+
+  // Reject control characters / whitespace that can aid attribute breakout
+  if (/[\u0000-\u001F\u007F\s]/.test(href)) return null;
+
+  // Same-document fragment anchors (e.g. #section)
+  if (href.startsWith('#')) {
+    return href;
+  }
+
+  const lower = href.toLowerCase();
+  if (
+    lower.startsWith('javascript:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('vbscript:') ||
+    lower.startsWith('file:')
+  ) {
+    return null;
+  }
+
+  // Protocol-relative URLs (//evil.example) — not allowlisted
+  if (href.startsWith('//')) return null;
+
+  try {
+    const parsed = new URL(href);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Builds a safe <a> tag, or falls back to plain (already-escaped) link text.
+ * @param {string} text - Link text (already HTML-escaped by the pipeline)
+ * @param {string} rawHref
+ * @returns {string}
+ */
+function renderSafeLink(text, rawHref) {
+  const safeHref = sanitizeHref(rawHref);
+  if (!safeHref) {
+    return text;
+  }
+  const attrHref = escapeHtmlAttribute(safeHref);
+  return `<a href="${attrHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+}
+
+/**
  * Converts markdown text to safe HTML.
  * Supports: headings, bold, italic, links, inline code, code blocks,
  * unordered/ordered lists, blockquotes, horizontal rules, paragraphs.
@@ -34,8 +109,8 @@ export function markdownToHtml(markdown) {
     .replace(/__(.+?)__/g, '<strong>$1</strong>')
     .replace(/_(.+?)_/g, '<em>$1</em>')
 
-    // Links (safe target + rel)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Links — allowlisted schemes + attribute-safe href building
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, href) => renderSafeLink(text, href))
 
     // Inline code
     .replace(/`([^`]+)`/g, '<code>$1</code>')

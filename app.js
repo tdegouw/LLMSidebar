@@ -18,7 +18,7 @@
  * - All significant behavior lives in focused services / adapters / controllers / views.
  *
  * Public surface (used by sidepanel-init.js):
- *   - App.init()
+ *   - App.init({ messaging })
  *   - App.processPendingContextMessage(message)
  */
 
@@ -73,15 +73,19 @@ export const App = {
   /**
    * Bootstraps the entire application.
    * Must be called once on DOMContentLoaded.
+   *
+   * @param {object} [options]
+   * @param {ReturnType<typeof createSidepanelMessaging>} [options.messaging]
+   *   Shared sidepanel messaging instance. Prefer injecting the bootstrap
+   *   instance so early-capture and App handlers share one listener map.
    */
-  async init() {
+  async init(options = {}) {
     this._createInfrastructure();
     this._createServicesAndAdapters();
     this._createViews();
     await this._initializeUI();
 
-    this._setupMessaging();
-    this.messaging.notifyReady();
+    this._setupMessaging(options.messaging);
 
     console.log('[App] Composition root initialized');
   },
@@ -194,8 +198,13 @@ export const App = {
     this.outputView?.setProcessing?.(false);
   },
 
-  _setupMessaging() {
-    this.messaging = createSidepanelMessaging();
+  /**
+   * Wire sidepanel messaging. Prefer the bootstrap-injected instance so there
+   * is exactly one createSidepanelMessaging() for the panel lifetime.
+   * SIDEPANEL_READY is sent by sidepanel-init.js after init + pending replay.
+   */
+  _setupMessaging(messaging) {
+    this.messaging = messaging || createSidepanelMessaging();
 
     this.messaging.on('LLMsidebarMessage', (message) => {
       this.analysisController?.handleContextMenuMessage(message);
