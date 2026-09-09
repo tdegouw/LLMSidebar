@@ -24,9 +24,10 @@ export const DEFAULT_TEMPERATURE_CONFIG = {
  * @returns {number} The temperature to use for the LLM request
  */
 export function resolveTemperature(contentLength, config = {}) {
-  const low = config.temperature ?? DEFAULT_TEMPERATURE_CONFIG.temperature;
-  const high = config.temperatureHigh ?? DEFAULT_TEMPERATURE_CONFIG.temperatureHigh;
-  const threshold = config.temperatureThreshold ?? DEFAULT_TEMPERATURE_CONFIG.temperatureThreshold;
+  const cfg = config ?? {};
+  const low = cfg.temperature ?? DEFAULT_TEMPERATURE_CONFIG.temperature;
+  const high = cfg.temperatureHigh ?? DEFAULT_TEMPERATURE_CONFIG.temperatureHigh;
+  const threshold = cfg.temperatureThreshold ?? DEFAULT_TEMPERATURE_CONFIG.temperatureThreshold;
 
   return contentLength > threshold ? high : low;
 }

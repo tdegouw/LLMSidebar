@@ -31,3 +31,8 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Test tooling
+node_modules/
+coverage/
+.vitest/

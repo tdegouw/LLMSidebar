@@ -1,0 +1,15 @@
+{
+  "name": "llmsidebar",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome MV3 side panel for local LLM analysis",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "happy-dom": "^17.4.4",
+    "vitest": "^3.2.4"
+  }
+}
